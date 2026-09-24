@@ -125,6 +125,42 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .sum .kv b.dim{color:#B8C2BD;font-weight:400}
 .cta{margin-top:26px}.cta .btn{width:100%;padding:22px;font-size:19px;font-weight:700;border-radius:12px}
 
+/* 每日名單 */
+.ltb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.ibtn{width:54px;height:54px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:20px;color:var(--tx)}
+.ibtn:hover{background:var(--teal-l)}
+.datepill{display:flex;align-items:center;gap:12px;height:54px;padding:0 18px;border:1px solid var(--line);border-radius:12px;background:#fff;position:relative;cursor:pointer}
+.datepill input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.datepill b{font-size:20px;font-weight:700}.datepill .ic{font-size:18px}
+.today-badge{background:var(--teal-l);color:var(--teal);border-radius:8px;padding:3px 10px;font-size:13px;font-weight:700}
+.ltb select,.ltb .search{height:54px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
+.ltb .search{margin-left:auto;width:340px}
+.ltb .btn.sec{height:54px;border-radius:12px;font-size:16px}
+.lk{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:18px}
+.lk .k{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(27,43,38,.04),0 6px 18px rgba(27,43,38,.05)}
+.lk .k small{display:block;color:var(--mut);font-size:15px}.lk .k b{display:block;font-size:40px;font-weight:700;margin-top:6px;line-height:1.1}
+.lk .k .d{font-size:13px;color:var(--mut);margin-top:8px}
+.lk .k.g b{color:var(--teal)}.lk .k.r b{color:var(--red)}.lk .k.a b{color:var(--amb)}
+table.lt{font-size:17px}table.lt th{font-size:15px;color:var(--tx);font-weight:700;padding:18px 16px;background:#FAFBFA}
+table.lt td{padding:16px;border-bottom:1px solid var(--line2)}
+table.lt tr.cancel td{background:#FBECEA;color:#8E2A20}table.lt tr.cancel td.name b,table.lt tr.cancel td.time{text-decoration:line-through}
+table.lt tr.late td{background:#FFF8E8}
+.ck{width:28px;height:28px;border-radius:7px;border:2px solid #B8C2BD;background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:18px;font-weight:700}
+.ck.on{background:var(--teal);border-color:var(--teal)}.ck.dis{opacity:.35;cursor:not-allowed}
+.pill{display:inline-block;border-radius:8px;padding:5px 12px;font-size:14px;font-weight:500;white-space:nowrap}
+.pill.blue{background:var(--blue-l);color:var(--blue)}.pill.purp{background:#EEE8F7;color:#6B4FA3}.pill.ok{background:var(--teal-l);color:var(--teal)}
+.pill.grey{background:var(--grey-l);color:var(--mut)}.pill.amb{background:var(--amb-l);color:var(--amb)}.pill.red{background:var(--red);color:#fff}
+.pill.done{background:var(--teal);color:#fff;font-weight:700}
+.stx{font-size:15px;line-height:1.4}.stx.red{color:var(--red)}
+.obtn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 16px;font-size:15px;color:var(--tx)}
+.obtn:hover{background:var(--teal-l)}.obtn.red{border-color:var(--red);color:var(--red)}.obtn.red:hover{background:var(--red-l)}
+.lfoot{display:flex;gap:26px;align-items:center;padding:16px 22px;font-size:14px;color:var(--mut);border-top:1px solid var(--line2)}
+.lfoot .r{margin-left:auto}.sw{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-2px;border:1px solid var(--line)}
+.sw.red{background:#FBECEA;border-color:#F2C9C4}.sw.amb{background:#FFF8E8;border-color:#F1DDA8}
+@media(max-width:1280px){.lk{grid-template-columns:repeat(3,1fr)}.ltb .search{width:220px;margin-left:0}}
+@media(max-width:820px){.lk{grid-template-columns:1fr 1fr}}
+@media print{header,.ltb .ibtn,.ltb select,.ltb .search,.ltb .btn,#toast,.lt td:last-child,.lt th:last-child{display:none!important}main{padding:0}.card{box-shadow:none}body{background:#fff}}
+
 /* 名單 / 統計 / 醫師 */
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .bar select,.bar input{padding:10px 12px;border:1px solid var(--line);border-radius:10px;height:44px;background:#fff}
@@ -231,19 +267,21 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 
   <!-- ---------- 每日名單 ---------- -->
   <section id="v-list" class="hidden">
-    <div class="card">
-      <h2>每日預約名單 <span class="sub" id="list-sum"></span></h2>
-      <div class="bar">
-        <select id="li-clinic" onchange="loadList()"></select>
-        <button class="btn sec sm" onclick="shiftDate(-1)">‹</button>
-        <input type="date" id="li-date" onchange="loadList()">
-        <button class="btn sec sm" onclick="shiftDate(1)">›</button>
-        <button class="btn sec sm" onclick="setToday()">今天</button>
-        <label class="ck"><input type="checkbox" id="li-hidecancel" onchange="renderList()"> 隱藏取消</label>
-        <button class="btn ghost sm" style="margin-left:auto" onclick="loadList()">重新整理</button>
-      </div>
-      <div class="tw"><table><thead><tr><th>時段</th><th>序</th><th>醫師</th><th>姓名</th><th>身分證</th><th>方式</th><th>LINE</th><th>狀態</th><th>建立</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
+    <div class="ltb">
+      <button class="ibtn" onclick="shiftDate(-1)">‹</button>
+      <label class="datepill"><span class="ic">📅</span><input type="date" id="li-date" onchange="loadList()"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span></label>
+      <button class="ibtn" onclick="shiftDate(1)">›</button>
+      <select id="li-clinic" onchange="loadList()"></select>
+      <select id="li-doctor" onchange="renderList()"><option value="">全部醫師</option></select>
+      <select id="li-period" onchange="renderList()"><option value="">全日</option><option value="am">上午診</option><option value="pm">下午診</option><option value="ev">晚間診</option></select>
+      <input id="li-q" class="search" placeholder="搜尋姓名 / 身分證" oninput="renderList()">
+      <button class="btn sec" onclick="window.print()">🖨 列印名單</button>
+    </div>
+    <div class="lk" id="li-kpi"></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
+      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r" id="li-count"></span></div>
     </div>
   </section>
 
@@ -273,12 +311,18 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <!-- ---------- 醫師名單 ---------- -->
   <section id="v-doc" class="hidden">
     <div class="card">
-      <h2>醫師名單 <span class="sub">每日 05:30 自動同步官網各院區醫療團隊；可手動新增或停用</span></h2>
+      <h2>醫師名單 <span class="sub">來源：官網各院區醫療團隊頁；可手動新增或停用</span></h2>
+      <div class="note" style="margin-bottom:18px;display:block">
+        <b>同步官網醫師名單（書籤小工具）</b>　官網主機會擋掉 Google 伺服器的抓取，因此改由瀏覽器代抓：
+        ① 把右邊這顆按鈕<b>拖曳到瀏覽器書籤列</b>（只需做一次）　② 開啟 <a href="https://www.drking.com.tw/info_all.html" target="_blank" style="color:var(--teal)">金鶯官網</a>　③ 在官網頁面按一下書籤，約 3 秒後會開新分頁顯示匯入結果。
+        <a id="bm" href="#" onclick="return false" draggable="true" class="btn sm" style="display:inline-block;margin-left:10px;text-decoration:none">📌 同步金鶯官網醫師</a>
+        <div style="font-size:12px;color:var(--mut);margin-top:6px">書籤內含您目前的登入憑證（6 小時有效）；過期時請回此頁重新拖曳一次。</div>
+      </div>
       <div class="bar">
         <select id="dc-clinic" onchange="loadDoctors()"></select>
         <input id="dc-new" placeholder="手動新增醫師姓名">
         <button class="btn sm" onclick="addDoctor()">新增</button>
-        <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">立即同步官網</button>
+        <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">伺服器抓取（備用）</button>
       </div>
       <div class="tw"><table><thead><tr><th>院區</th><th>醫師</th><th>來源</th><th>狀態</th><th>最後同步</th><th>操作</th></tr></thead><tbody id="dc-body"></tbody></table></div>
     </div>
@@ -431,20 +475,22 @@ function loadSlots() {
   document.getElementById('slots').innerHTML = '<div class="empty">載入中…</div>';
   get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
     if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
-    var groups = [ { t:'上午診', f:function(h){ return h < 12; } }, { t:'下午診', f:function(h){ return h >= 12 && h < 18; } }, { t:'晚間診', f:function(h){ return h >= 18; } } ];
+    var groups = [ { t:'上午診', f:function(m){ return m < 12 * 60; } }, { t:'下午診', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', f:function(m){ return m >= 18 * 60; } } ];
     var html = '';
     groups.forEach(function(g) {
-      var list = d.slots.filter(function(s){ return g.f(s.hour); }); if (!list.length) return;
+      var list = d.slots.filter(function(s){ return g.f(s.min); }); if (!list.length) return;
       var lo = list[0], hi = list[list.length - 1];
-      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + p2(hi.hour + 1) + ':00</h4><div class="slots">';
+      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots">';
       list.forEach(function(s) {
         var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75;
-        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–<br>' + p2(s.hour + 1) + ':00</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
+        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–<br>' + s.end + '</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
       });
       for (var i = list.length % 4; i > 0 && i < 4; i++) html += '<div class="slot ph">—</div>';
       html += '</div></div>';
     });
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
+    if (S.pendingSlot) { var el = document.querySelector('.slot[data-k="' + S.pendingSlot + '"]'); if (el && !el.classList.contains('full')) pickSlot(el, false); S.pendingSlot = ''; }
+    if (S.pendingDoctor) { var ds = document.getElementById('b-doctor'); for (var i = 0; i < ds.options.length; i++) if (ds.options[i].value === S.pendingDoctor) ds.value = S.pendingDoctor; S.pendingDoctor = ''; renderSummary(); }
   });
 }
 function pickSlot(el, full) {
@@ -525,34 +571,90 @@ function resetForm() {
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
 function loadList() {
-  get({ action:'getBookings', clinicCode:document.getElementById('li-clinic').value, date:document.getElementById('li-date').value }, function(d) {
+  var date = document.getElementById('li-date').value || S.today;
+  document.getElementById('li-datetxt').textContent = dateTxt(date);
+  document.getElementById('li-today').classList.toggle('hidden', date !== S.today);
+  get({ action:'getBookings', clinicCode:document.getElementById('li-clinic').value, date:date }, function(d) {
     if (d.error) return toast(d.error, 'err');
-    S.list = d.list; renderList();
+    S.list = d.list; S.listNow = d.now || '';
+    // 醫師篩選選項：該院區名單 + 當日出現過的醫師
+    var code = document.getElementById('li-clinic').value; var names = {};
+    S.doctors.forEach(function(x){ if (!code || x.clinicCode === code) names[x.name] = 1; }); S.list.forEach(function(b){ names[b.doctor] = 1; });
+    var sel = document.getElementById('li-doctor'), cur = sel.value;
+    sel.innerHTML = '<option value="">全部醫師</option>' + Object.keys(names).sort().map(function(n){ return '<option' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
+    renderList();
   });
 }
+function slotMin(slot) { var m = String(slot).match(/^(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
+function lateMinutes(b) { // 今日(或過去)且待報到、時段結束已過 → 回傳逾時分鐘數；否則 0
+  if (b.status !== '待報到') return 0;
+  var date = document.getElementById('li-date').value; var n = new Date();
+  var nowMin = n.getHours() * 60 + n.getMinutes();
+  if (date < S.today) return 9999;
+  if (date > S.today) return 0;
+  var endMin = slotMin(b.slot) + 60; return nowMin > endMin ? nowMin - endMin : 0;
+}
 function renderList() {
-  var hide = document.getElementById('li-hidecancel').checked;
-  var rows = S.list.filter(function(b){ return !(hide && /取消/.test(b.status)); });
-  var cnt = { done:0, cancel:0, pend:0 };
-  S.list.forEach(function(b){ if (b.status === '已報到') cnt.done++; else if (/取消/.test(b.status)) cnt.cancel++; else if (b.status === '待報到') cnt.pend++; });
-  document.getElementById('list-sum').textContent = dateTxt(document.getElementById('li-date').value) + '　共 ' + S.list.length + ' 筆 · 待報到 ' + cnt.pend + ' · 已報到 ' + cnt.done + ' · 取消 ' + cnt.cancel;
+  var doc = document.getElementById('li-doctor').value, per = document.getElementById('li-period').value, q = document.getElementById('li-q').value.trim().toUpperCase();
+  var rows = S.list.filter(function(b) {
+    if (doc && b.doctor !== doc) return false;
+    var m = slotMin(b.slot); if (per === 'am' && m >= 720) return false; if (per === 'pm' && (m < 720 || m >= 1080)) return false; if (per === 'ev' && m < 1080) return false;
+    if (q && b.name.indexOf(q) < 0 && b.name.toUpperCase().indexOf(q) < 0 && b.pid.indexOf(q) < 0 && b.pidMasked.indexOf(q) < 0) return false;
+    return true;
+  });
+  var k = { total:S.list.length, phone:0, revisit:0, done:0, pend:0, cancel:0, late:0 };
+  S.list.forEach(function(b) {
+    if (b.type === '回診預約') k.revisit++; else k.phone++;
+    if (b.status === '已報到') k.done++; else if (/取消/.test(b.status)) k.cancel++; else { k.pend++; if (b.status === '未回診' || lateMinutes(b) > 0) k.late++; }
+  });
+  document.getElementById('li-kpi').innerHTML =
+    '<div class="k"><small>今日預約</small><b>' + k.total + '</b><div class="d">電話 ' + k.phone + ' · 回診 ' + k.revisit + '</div></div>' +
+    '<div class="k g"><small>已報到</small><b>' + k.done + '</b></div>' +
+    '<div class="k"><small>尚未報到</small><b>' + k.pend + '</b></div>' +
+    '<div class="k r"><small>已取消（LINE / 電話）</small><b>' + k.cancel + '</b></div>' +
+    '<div class="k a"><small>逾時未到</small><b>' + k.late + '</b></div>';
   document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
-  var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin;
+  document.getElementById('li-count').textContent = '顯示 ' + rows.length + ' / 共 ' + S.list.length + ' 筆 · 依時段、序號排序';
   document.getElementById('li-body').innerHTML = rows.map(function(b, i) {
-    var cls = /取消/.test(b.status) ? 'cancel' : (b.status === '已報到' ? 'done' : (b.status === '未回診' ? 'noshow' : ''));
-    var line = b.lineReply === '確認' ? '<span class="tag ok">確認會來</span>' : (b.lineReply === '取消' ? '<span class="tag red">LINE 取消</span>' : (b.pushed ? '<span class="tag blue">已提醒</span>' : '<span class="tag no">—</span>'));
-    var ops = '';
-    if (b.status === '待報到') ops = '<button class="btn sm" onclick="opCheck(' + i + ',false)">報到</button><button class="btn sm sec" onclick="opCancel(' + i + ')">取消</button>';
-    else if (b.status === '已報到') ops = '<button class="btn sm sec" onclick="opCheck(' + i + ',true)">取消報到</button>';
-    else if (/取消/.test(b.status)) ops = '<button class="btn sm sec" onclick="opRestore(' + i + ')">復原</button>';
-    else if (b.status === '未回診') ops = '<button class="btn sm sec" onclick="opCheck(' + i + ',false)">補報到</button>';
-    return '<tr class="' + cls + '"><td><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td>' + (showClinic ? '<small style="color:var(--mut)">' + esc(b.clinicName) + '</small><br>' : '') + esc(b.doctor) + '</td><td class="name"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="tag amb">回診</span>' : '<span class="tag blue">電話</span>') + '</td><td>' + line + '</td><td><span class="st ' + b.status + '">' + b.status + '</span>' + (b.checkedAt ? '<br><small style="color:var(--mut)">' + b.checkedAt.slice(11) + ' ' + esc(b.checkedBy) + '</small>' : '') + (b.cancelAt ? '<br><small>' + b.cancelAt.slice(5) + ' ' + esc(b.cancelBy) + '</small>' : '') + '</td><td><small style="color:var(--mut)">' + esc(b.createdBy) + '<br>' + b.created.slice(5) + '</small></td><td><div class="ops">' + ops + '</div></td></tr>';
+    var cancelled = /取消/.test(b.status), late = lateMinutes(b), isLate = late > 0 || b.status === '未回診';
+    var cls = cancelled ? 'cancel' : (isLate ? 'late' : '');
+    var ck = cancelled ? '<span class="ck dis"></span>' : '<span class="ck' + (b.status === '已報到' ? ' on' : '') + '" onclick="opCheck(' + i + ',' + (b.status === '已報到') + ')">' + (b.status === '已報到' ? '✓' : '') + '</span>';
+    var line = b.lineReply === '確認' ? '<span class="pill ok">已確認</span>' : (b.status === '取消-LINE' || b.lineReply === '取消') ? '<span class="pill red">LINE 取消</span>' : b.status === '取消-電話' ? '<span class="pill red">電話取消</span>' : b.pushed ? '<span class="pill amb">未回覆</span>' : b.bound ? '<span class="pill grey">待提醒</span>' : '<span class="pill grey">未綁定</span>';
+    var st, ops;
+    if (b.status === '已報到') { st = '<span class="pill done">已報到 ' + (b.checkedAt || '').slice(11) + '</span>'; ops = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>'; }
+    else if (cancelled) { st = '<div class="stx red">ⓘ 已取消 ' + (b.cancelAt || '').slice(5) + ' · ' + (b.status === '取消-LINE' ? '名額已釋出' : '櫃檯 ' + esc(b.cancelBy) + ' 登記') + '</div>'; ops = '<button class="obtn red" onclick="fillFrom(' + i + ')">候補遞補</button> <button class="obtn" onclick="openDetail(' + i + ')">詳細</button>'; }
+    else if (b.status === '未回診') { st = '<span class="pill amb">未回診</span>'; ops = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>'; }
+    else if (isLate) { st = '<span class="pill amb">逾時未到' + (late < 9999 ? '（已過 ' + late + ' 分）' : '') + '</span>'; ops = '<button class="obtn" onclick="openDetail(' + i + ')">致電</button> <button class="obtn" onclick="openDetail(' + i + ')">詳細</button>'; }
+    else { st = '<span class="pill grey">待報到</span>'; ops = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>'; }
+    return '<tr class="' + cls + '"><td>' + ck + '</td><td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
 function opCheck(i, undo) { var b = S.view[i]; if (!b) return; get({ action:'checkIn', id:b.id, undo:undo ? '1' : '0' }, function(d){ if (d.error) return toast(d.error, 'err'); toast(undo ? '已取消報到' : b.name + ' 報到完成', 'ok'); loadList(); }); }
-function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); loadList(); }); }
-function opRestore(i) { var b = S.view[i]; if (!b) return; get({ action:'restoreBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已復原為待報到', 'ok'); loadList(); }); }
+function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); closeModal(); loadList(); }); }
+function opRestore(i) { var b = S.view[i]; if (!b) return; get({ action:'restoreBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已復原為待報到', 'ok'); closeModal(); loadList(); }); }
+function openDetail(i) {
+  var b = S.view[i]; if (!b) return; var cancelled = /取消/.test(b.status);
+  function kv(k, v) { return '<span>' + k + '</span><b>' + (v || '—') + '</b>'; }
+  var acts = '';
+  if (b.status === '待報到' || b.status === '未回診') acts += '<button class="btn" onclick="opCheck(' + i + ',false);closeModal()">報到</button> <button class="btn sec" onclick="opCancel(' + i + ')">電話取消</button>';
+  if (b.status === '已報到') acts += '<button class="btn sec" onclick="opCheck(' + i + ',true);closeModal()">取消報到</button>';
+  if (cancelled) acts += '<button class="btn sec" onclick="opRestore(' + i + ')">復原預約</button> <button class="btn" onclick="fillFrom(' + i + ')">候補遞補</button>';
+  openModal('<h3>' + esc(b.name) + '　<span style="font-size:14px;color:var(--mut);font-weight:400">' + b.id + '</span></h3>' +
+    '<div class="kv">' + kv('院區', esc(b.clinicName) + '院區') + kv('日期時段', b.date + '　' + b.slot) + kv('醫師', esc(b.doctor)) + kv('身分證', b.pidMasked) + kv('方式', b.type) + kv('狀態', b.status) +
+    kv('LINE', b.bound ? ((b.lineReply ? '回覆：' + b.lineReply + ' ' + (b.lineReplyAt || '').slice(5) : (b.pushed ? '已提醒 ' + b.pushed.slice(5) + '，未回覆' : '已綁定，尚未提醒'))) : '未綁定') +
+    kv('建立', esc(b.createdBy) + ' ' + b.created) + (b.checkedAt ? kv('報到', b.checkedAt.slice(5) + ' ' + esc(b.checkedBy)) : '') + (b.cancelAt ? kv('取消', b.cancelAt.slice(5) + ' ' + esc(b.cancelBy)) : '') + kv('備註', esc(b.note)) + '</div>' +
+    '<div class="note plain" style="margin-top:6px">本系統不收手機號碼；需致電請以院所掛號系統查詢聯絡電話。</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap">' + acts + ' <button class="btn sec" onclick="closeModal()">關閉</button></div>');
+}
+// 候補遞補：帶著院區/日期/時段/醫師跳到新增預約
+function fillFrom(i) {
+  var b = S.view[i]; if (!b) return; closeModal();
+  document.getElementById('b-clinic').value = b.clinicCode; S.date = b.date; var d = new Date(b.date + 'T00:00:00'); S.calY = d.getFullYear(); S.calM = d.getMonth();
+  S.pendingSlot = b.slot; S.pendingDoctor = b.doctor;
+  showView('book'); renderCal(); onClinicChange();
+  toast('已帶入 ' + b.clinicName + '院區 ' + b.date + ' ' + b.slot + '，請輸入遞補民眾資料', 'ok');
+}
 
 // ==================== 統計 ====================
 function stPreset(n) { var t = new Date(S.today + 'T00:00:00'); var f = new Date(t); f.setDate(f.getDate() - n + (n ? 1 : 0)); document.getElementById('st-from').value = ymd(f); document.getElementById('st-to').value = S.today; }
@@ -579,7 +681,13 @@ function tableRows(obj) {
 }
 
 // ==================== 醫師名單 ====================
+function buildBookmarklet() {
+  var code = "(async()=>{if(!/drking\\.com\\.tw$/.test(location.hostname)){alert('請先開啟金鶯診所官網 www.drking.com.tw，再按此書籤');location.href='https://www.drking.com.tw/info_all.html';return;}var d={};for(var n=2;n<=15;n++){try{var t=await(await fetch('/products-'+n+'.html')).text();var doc=new DOMParser().parseFromString(t,'text/html');var c=(doc.title||'').replace(/^金鶯診所-/,'').replace(/院區$/,'').trim();var names=Array.from(doc.querySelectorAll('.pronameone')).map(function(e){return e.textContent.replace(/\\s+/g,'')}).filter(Boolean);if(c&&names.length)d[c]=names;}catch(e){}}if(!Object.keys(d).length){alert('沒有抓到醫師名單，請確認官網頁面結構');return;}window.open('" + API + "?action=importDoctors&token=" + S.token + "&data='+encodeURIComponent(JSON.stringify(d)),'_blank');})();";
+  var a = document.getElementById('bm'); a.setAttribute('href', 'javascript:' + encodeURIComponent(code));
+  a.onclick = function(e){ e.preventDefault(); toast('請把這顆按鈕「拖曳」到瀏覽器書籤列，再到官網頁面點它', ''); };
+}
 function loadDoctors() {
+  buildBookmarklet();
   get({ action:'getDoctors', clinicCode:document.getElementById('dc-clinic').value }, function(d) {
     if (d.error) return toast(d.error, 'err');
     S.docList = d.doctors;
