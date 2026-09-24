@@ -95,13 +95,14 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .sl-legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.sl-legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}
 .grp{margin-top:22px}
 .grp h4{font-size:16px;font-weight:700;margin:0 0 12px;padding-left:12px;border-left:4px solid var(--teal);line-height:1.2}
-.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.slot{border:1px solid var(--line);border-radius:12px;padding:16px 8px 12px;text-align:center;background:#fff;cursor:pointer;transition:.12s;min-height:104px;display:flex;flex-direction:column;justify-content:center}
-.slot b{display:block;font-size:20px;font-weight:700;line-height:1.25}
-.slot small{display:block;color:var(--mut);font-size:14px;margin-top:8px}
+.slots{display:grid;grid-template-columns:repeat(var(--c,4),1fr);gap:12px}
+@media(max-width:1500px){.slots{grid-template-columns:repeat(var(--c2,3),1fr)}}
+.slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.slot b{display:block;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
+.slot small{display:block;color:var(--mut);font-size:13px;white-space:nowrap}
 .slot:hover{border-color:var(--teal);background:#F7FBF9}
 .slot.warn{background:var(--amb-l);border-color:var(--amb-l)}.slot.warn small{color:var(--amb)}
-.slot.on,.slot.warn.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal);padding:15px 7px 11px}.slot.on small,.slot.warn.on small{color:var(--teal)}
+.slot.on,.slot.warn.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal);padding:15px 9px 13px}.slot.on small,.slot.warn.on small{color:var(--teal)}
 .slot.full{background:var(--grey-l);border-color:var(--grey-l);color:var(--mut);cursor:not-allowed}
 .slot.ph{border:1px dashed var(--line);background:transparent;color:#B8C2BD;cursor:default}.slot.ph:hover{border-color:var(--line);background:transparent}
 .foot-note{margin-top:28px}
@@ -488,12 +489,12 @@ function loadSlots() {
     groups.forEach(function(g) {
       var list = d.slots.filter(function(s){ return g.f(s.min); }); if (!list.length) return;
       var lo = list[0], hi = list[list.length - 1];
-      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots">';
+      var n = list.length, cols = Math.ceil(n / Math.ceil(n / 5)), cols2 = Math.ceil(n / Math.ceil(n / 4)); // 依格數決定欄數，讓每列填滿
+      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + ';--c2:' + cols2 + '">';
       list.forEach(function(s) {
         var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75;
-        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–<br>' + s.end + '</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
+        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
       });
-      for (var i = list.length % 4; i > 0 && i < 4; i++) html += '<div class="slot ph">—</div>';
       html += '</div></div>';
     });
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
