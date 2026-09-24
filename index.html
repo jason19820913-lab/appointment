@@ -482,6 +482,7 @@ function loadSlots() {
   document.getElementById('slots').innerHTML = '<div class="empty">載入中…</div>';
   get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
     if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
+    d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (!s.end) s.end = p2(Math.floor((s.min + 60) / 60)) + ':' + p2((s.min + 60) % 60); if (!s.label) s.label = s.key + '-' + s.end; });
     var groups = [ { t:'上午診', f:function(m){ return m < 12 * 60; } }, { t:'下午診', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', f:function(m){ return m >= 18 * 60; } } ];
     var html = '';
     groups.forEach(function(g) {
