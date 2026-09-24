@@ -298,7 +298,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
-      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r" id="li-count"></span></div>
+      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 10 秒自動更新</span><span id="li-count"></span></span></div>
     </div>
   </section>
 
@@ -374,7 +374,7 @@ function get(params, cb, btn) {
     if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
     cb(d);
   }).catch(function(e) {
-    clearTimeout(timer);
+    clearTimeout(timer); _listBusy = false;
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
     toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
   });
@@ -395,6 +395,7 @@ function doLogin() {
 document.getElementById('l-pw').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
 
 function logout() {
+  stopListPoll();
   try { localStorage.removeItem(LS_KEY); } catch (e) {}
   S.token = ''; S.user = null;
   document.getElementById('app').classList.add('hidden');
@@ -416,7 +417,7 @@ function enterApp() {
     stPreset(7);
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
-    renderCal(); onClinicChange();
+    renderCal(); onClinicChange(); startListPoll();
   });
 }
 
@@ -593,15 +594,28 @@ function resetForm() {
 }
 
 // ==================== 每日名單 ====================
+// 每日名單自動更新：畫面停在名單頁且視窗在前景時，每 20 秒重新載入；切回分頁 / 視窗取得焦點時也立即更新
+var LIST_POLL_MS = 10000, _pollTimer = null, _listBusy = false;
+function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
+  var visible = !document.getElementById('v-list').classList.contains('hidden') && !document.hidden;
+  var modalOpen = !document.getElementById('modal').classList.contains('hidden');
+  if (visible && !modalOpen && !_listBusy) loadList(true);
+}, LIST_POLL_MS); }
+function stopListPoll() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = null; }
+document.addEventListener('visibilitychange', function(){ if (!document.hidden && !document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
+window.addEventListener('focus', function(){ if (!document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
-function loadList() {
+function loadList(silent) {
   var date = document.getElementById('li-date').value || S.today;
   document.getElementById('li-datetxt').textContent = dateTxt(date);
   document.getElementById('li-today').classList.toggle('hidden', date !== S.today);
+  _listBusy = true; var live = document.getElementById('li-live'); if (live) live.style.opacity = '.45';
   get({ action:'getBookings', clinicCode:document.getElementById('li-clinic').value, date:date }, function(d) {
-    if (d.error) return toast(d.error, 'err');
+    _listBusy = false; if (live) live.style.opacity = '1';
+    if (d.error) { if (!silent) toast(d.error, 'err'); return; }
     S.list = d.list; S.listNow = d.now || '';
+    var n = new Date(); if (live) live.textContent = '● 每 10 秒自動更新 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
     // 醫師篩選選項：該院區名單 + 當日出現過的醫師
     var code = document.getElementById('li-clinic').value; var names = {};
     S.doctors.forEach(function(x){ if (!code || x.clinicCode === code) names[x.name] = 1; }); S.list.forEach(function(b){ names[b.doctor] = 1; });
