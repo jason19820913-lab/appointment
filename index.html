@@ -3,93 +3,156 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>金鶯診所 門診預約系統</title>
+<title>金鶯診所 · 健保門診預約系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --g:#1E7F5C; --g2:#166647; --gl:#E6F3ED; --bg:#F3F6F4; --card:#FFFFFF; --tx:#1B2B26; --mut:#6B7C75; --line:#DCE5E0;
-  --red:#C0392B; --redl:#FDEDEB; --amb:#B7791F; --ambl:#FFF6E3; --blue:#2C6FB2; --bluel:#E8F0FA; --r:12px;
+  --hd:#1F3D38; --hd2:#2A5049; --pri:#1F4D45; --pri2:#173B35; --teal:#1E6F63; --teal-l:#E3F0EC; --teal-b:#B9D9D0;
+  --bg:#F1F5F2; --card:#FFFFFF; --tx:#1B2B26; --mut:#6B7C75; --line:#DCE5E0; --line2:#EEF2EF;
+  --amb:#B7791F; --amb-l:#FBE9C7; --red:#C0392B; --red-l:#FDEDEB; --blue:#2C6FB2; --blue-l:#E8F0FA; --grey-l:#ECEFED;
+  --r:16px; --r2:12px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--tx);font-size:15px}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;font-size:15px}
 button{font-family:inherit;cursor:pointer}
-input,select{font-family:inherit;font-size:15px;color:var(--tx)}
+input,select{font-family:inherit;font-size:16px;color:var(--tx)}
 .hidden{display:none!important}
-/* ---------- 登入 ---------- */
-#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.lbox{background:var(--card);border-radius:20px;padding:34px 30px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(27,43,38,.08)}
-.logo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-.logo .mark{width:44px;height:44px;border-radius:12px;background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
-.logo h1{font-size:19px;margin:0;line-height:1.3}.logo small{display:block;font-size:12px;color:var(--mut);font-weight:400}
-.fld{margin-bottom:14px}.fld label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
-.fld input,.fld select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
-.fld input:focus,.fld select:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(30,127,92,.15)}
-.btn{border:none;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:500;background:var(--g);color:#fff;transition:.15s}
-.btn:hover{background:var(--g2)}.btn:disabled{opacity:.5;cursor:default}
-.btn.w{width:100%}.btn.sec{background:#fff;color:var(--tx);border:1px solid var(--line)}.btn.sec:hover{background:var(--gl)}
-.btn.sm{padding:6px 10px;font-size:13px;border-radius:8px}.btn.red{background:var(--red)}.btn.red:hover{background:#A93226}
-.btn.ghost{background:transparent;color:var(--g);border:1px solid var(--g)}.btn.ghost:hover{background:var(--gl)}
-.err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
-/* ---------- 版面 ---------- */
-header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-.hin{max-width:1180px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px}
-.hin .mark{width:34px;height:34px;border-radius:9px;background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
-.hin .ttl{font-weight:700;font-size:16px}.hin .ttl small{display:block;font-size:11px;color:var(--mut);font-weight:400}
-nav{display:flex;gap:4px;margin-left:18px;flex-wrap:wrap}
-nav button{background:transparent;border:none;padding:8px 12px;border-radius:8px;font-size:14px;color:var(--mut)}
-nav button.on{background:var(--gl);color:var(--g);font-weight:700}
-.who{margin-left:auto;text-align:right;font-size:13px;line-height:1.35}.who b{display:block;font-size:14px}.who span{color:var(--mut)}
-.who .chip{display:inline-block;background:var(--gl);color:var(--g);border-radius:20px;padding:1px 9px;font-size:12px;margin-top:2px}
-main{max-width:1180px;margin:0 auto;padding:18px}
-.card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:0 1px 3px rgba(27,43,38,.06);margin-bottom:16px}
-.card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:10px}.card h2 .sub{font-size:12px;color:var(--mut);font-weight:400}
-.grid{display:grid;gap:14px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.who span{display:none}nav{margin-left:0}}
-@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}.hin{flex-wrap:wrap;gap:8px}.hin .ttl small{display:none}.who{white-space:nowrap}.who b{display:inline;margin-right:6px}nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:7px 8px;font-size:13px}}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:none;background:#fff;padding:9px 16px;font-size:14px;color:var(--mut)}
-.seg button.on{background:var(--g);color:#fff;font-weight:700}
-/* 時段 */
-.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
-.slot{border:1px solid var(--line);border-radius:10px;padding:9px 6px;text-align:center;background:#fff;font-size:13px;line-height:1.35}
-.slot b{display:block;font-size:14px}.slot small{color:var(--mut)}
-.slot.on{border-color:var(--g);background:var(--gl);color:var(--g);box-shadow:0 0 0 2px rgba(30,127,92,.2)}
-.slot.full{opacity:.45;cursor:not-allowed}.slot.warn small{color:var(--amb)}
-/* 姓名記憶 */
-.ac{position:relative}.acl{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:30;max-height:240px;overflow:auto}
-.aci{padding:9px 12px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;font-size:14px;border-bottom:1px solid #F0F3F1}
-.aci:hover{background:var(--gl)}.aci small{color:var(--mut);font-size:12px}
-.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700}
-.tag.ok{background:var(--gl);color:var(--g)}.tag.no{background:#EEF1EF;color:var(--mut)}
-.tag.red{background:var(--redl);color:var(--red)}.tag.amb{background:var(--ambl);color:var(--amb)}.tag.blue{background:var(--bluel);color:var(--blue)}
-/* 表格 */
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{font-size:12px;color:var(--mut);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid #EEF1EF;vertical-align:middle}
-tr.cancel td{background:var(--redl);color:#8E2A20}tr.cancel td.name b{text-decoration:line-through}
-tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--ambl)}
-.st{font-weight:700;font-size:12px;border-radius:6px;padding:2px 8px;white-space:nowrap}
-.st.待報到{background:var(--bluel);color:var(--blue)}.st.已報到{background:var(--gl);color:var(--g)}
-.st.取消-LINE,.st.取消-電話{background:var(--red);color:#fff}.st.未回診{background:var(--amb);color:#fff}
-.ops{display:flex;gap:6px;flex-wrap:wrap}
-.tw{overflow:auto}
-/* KPI */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
-.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-.kpi small{display:block;color:var(--mut);font-size:12px}.kpi b{font-size:24px;font-weight:700}.kpi.hl{border-color:var(--g);background:var(--gl)}
-/* modal / toast */
-.ov{position:fixed;inset:0;background:rgba(20,30,26,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
-.md{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.md h3{margin:0 0 12px;font-size:18px}.md .kv{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;font-size:14px;margin:10px 0}.md .kv span{color:var(--mut)}
-.qr{text-align:center;margin-top:10px}.qr img{width:150px;height:150px;border:1px solid var(--line);border-radius:8px}
-#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1B2B26;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
-#toast.show{opacity:1}#toast.err{background:var(--red)}#toast.ok{background:var(--g)}
-.empty{text-align:center;color:var(--mut);padding:30px 0;font-size:14px}
-.note{font-size:12px;color:var(--mut);line-height:1.6}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+.fld label{display:block;font-size:14px;color:var(--mut);margin-bottom:8px}
+.fld input,.fld select{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none;height:50px}
+.fld input:focus,.fld select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(30,111,99,.15)}
+.fld{margin-bottom:16px}
+.btn{border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:500;background:var(--pri);color:#fff;transition:.15s;line-height:1.2}
+.btn:hover{background:var(--pri2)}.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:#fff;color:var(--tx);border:1px solid var(--line)}.btn.sec:hover{background:var(--teal-l)}
+.btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}.btn.ghost:hover{background:var(--teal-l)}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:8px}.btn.red{background:var(--red)}
+.step{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--tx);margin:0 0 18px}.step span{color:var(--mut);font-weight:500;letter-spacing:0;margin-left:6px}
+.note{display:flex;gap:8px;align-items:flex-start;background:var(--teal-l);color:#2E5A52;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6}
+.note.plain{background:var(--grey-l);color:var(--mut)}
+.tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
+.tag.ok{background:var(--teal-l);color:var(--teal)}.tag.no{background:var(--grey-l);color:var(--mut)}.tag.red{background:var(--red-l);color:var(--red)}
+.tag.amb{background:var(--amb-l);color:var(--amb)}.tag.blue{background:var(--blue-l);color:var(--blue)}
+.empty{text-align:center;color:var(--mut);padding:36px 0;font-size:14px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- 登入 ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--hd) 0%,var(--hd) 42%,var(--bg) 42.1%)}
+.lbox{background:var(--card);border-radius:20px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 18px 50px rgba(27,43,38,.18)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .mark{width:40px;height:40px;border-radius:10px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;line-height:1}
+.brand h1{font-size:19px;margin:0;line-height:1.3;font-weight:700}.brand small{display:block;font-size:12px;color:var(--mut);font-weight:400;margin-top:2px}
+.lbox .brand{margin-bottom:24px}
+.err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
+
+/* ---------- 頂欄 ---------- */
+header{background:var(--hd);color:#fff;position:sticky;top:0;z-index:20}
+.hin{max-width:1880px;margin:0 auto;padding:0 28px;height:70px;display:flex;align-items:center;gap:24px}
+.hin .brand .mark{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25)}
+.hin .brand h1{color:#fff;font-size:20px;letter-spacing:.02em}
+nav{display:flex;gap:6px;margin-left:16px}
+nav button{background:transparent;border:none;padding:10px 18px;border-radius:10px;font-size:16px;color:rgba(255,255,255,.72)}
+nav button:hover{color:#fff}nav button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:500}
+.hr{margin-left:auto;display:flex;align-items:center;gap:22px;font-size:15px}
+.clock{color:rgba(255,255,255,.85);letter-spacing:.02em}
+.who{display:flex;align-items:center;gap:12px}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.who .txt{white-space:nowrap}.who .sep{opacity:.5;margin:0 6px}
+.who a{color:rgba(255,255,255,.6);font-size:12px;text-decoration:none;margin-left:10px}.who a:hover{color:#fff}
+
+/* ---------- 版面 ---------- */
+main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
+.card{background:var(--card);border-radius:var(--r);padding:26px 24px;box-shadow:0 1px 2px rgba(27,43,38,.04),0 6px 18px rgba(27,43,38,.05)}
+.book{display:grid;grid-template-columns:minmax(320px,430px) minmax(480px,1fr) minmax(360px,490px);gap:28px;align-items:start}
+.col{display:flex;flex-direction:column;gap:22px}
+@media(max-width:1280px){.book{grid-template-columns:minmax(300px,380px) 1fr}.book .col3{grid-column:1/-1}}
+@media(max-width:820px){.book{grid-template-columns:1fr}.hin{padding:0 16px;gap:12px;height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.hin .brand small{display:none}.clock{display:none}nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:8px 10px;font-size:14px}.who .txt .sep,.who .txt .role{display:none}main{padding:16px}}
+
+/* 月曆 */
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-h b{font-size:19px;font-weight:700}
+.cal-h button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:16px;color:var(--tx)}
+.cal-h button:hover{background:var(--teal-l)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .wd{font-size:14px;color:var(--mut);padding:8px 0}
+.cal .d{height:48px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:17px;cursor:pointer;margin:2px auto;width:48px}
+.cal .d:hover{background:var(--teal-l)}
+.cal .d.out{color:#B8C2BD;cursor:default}.cal .d.out:hover{background:transparent}
+.cal .d.past{color:#B8C2BD;cursor:not-allowed}.cal .d.past:hover{background:transparent}
+.cal .d.today{border:2px solid var(--teal);color:var(--teal);font-weight:700}
+.cal .d.sel{background:var(--pri);color:#fff;font-weight:700;border-color:var(--pri)}
+.legend{display:flex;gap:18px;font-size:14px;color:var(--tx);margin-top:14px;align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
+.legend i.sel{background:var(--pri);border-color:var(--pri)}.legend i.today{border-color:var(--teal);border-width:2px;background:#fff}
+.legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}
+
+/* 時段 */
+.sl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.sl-title{font-size:20px;font-weight:700;margin:0 0 6px}
+.sl-legend{display:flex;gap:16px;font-size:13px;color:var(--mut);margin-top:2px}
+.sl-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--line);background:#fff}
+.sl-legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.sl-legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}
+.grp{margin-top:22px}
+.grp h4{font-size:16px;font-weight:700;margin:0 0 12px;padding-left:12px;border-left:4px solid var(--teal);line-height:1.2}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.slot{border:1px solid var(--line);border-radius:12px;padding:16px 8px 12px;text-align:center;background:#fff;cursor:pointer;transition:.12s;min-height:104px;display:flex;flex-direction:column;justify-content:center}
+.slot b{display:block;font-size:20px;font-weight:700;line-height:1.25}
+.slot small{display:block;color:var(--mut);font-size:14px;margin-top:8px}
+.slot:hover{border-color:var(--teal);background:#F7FBF9}
+.slot.warn{background:var(--amb-l);border-color:var(--amb-l)}.slot.warn small{color:var(--amb)}
+.slot.on,.slot.warn.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal);padding:15px 7px 11px}.slot.on small,.slot.warn.on small{color:var(--teal)}
+.slot.full{background:var(--grey-l);border-color:var(--grey-l);color:var(--mut);cursor:not-allowed}
+.slot.ph{border:1px dashed var(--line);background:transparent;color:#B8C2BD;cursor:default}.slot.ph:hover{border-color:var(--line);background:transparent}
+.foot-note{margin-top:28px}
+
+/* STEP 4 */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.seg button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:16px;font-size:17px;color:var(--tx)}
+.seg button.on{background:var(--pri);color:#fff;border-color:var(--pri);font-weight:700}
+.pid-row{display:flex;gap:12px}.pid-row input{flex:1}.pid-row .btn{height:50px;padding:0 18px;background:#fff;color:var(--teal);border:1px solid var(--teal)}.pid-row .btn:hover{background:var(--teal-l)}
+.hint{font-size:13px;min-height:18px;margin-top:6px}
+.ac{position:relative}
+.acl{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);z-index:30;overflow:hidden}
+.acl .h{background:var(--grey-l);color:var(--mut);font-size:13px;padding:10px 16px}
+.aci{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:16px;border-top:1px solid var(--line2)}
+.aci:hover{background:var(--teal-l)}
+.aci b{font-weight:700}.aci .pid{color:var(--mut);margin-left:6px;font-size:15px}
+.aci .r{font-size:13px;color:var(--mut);white-space:nowrap}.aci .r .ok{color:var(--teal);font-weight:500}
+.sum{border-top:1px dashed var(--line);margin-top:26px;padding-top:18px}
+.sum h5{margin:0 0 12px;font-size:16px;font-weight:700}
+.sum .kv{display:flex;justify-content:space-between;font-size:16px;padding:7px 0}.sum .kv span{color:var(--tx)}.sum .kv b{font-weight:700;text-align:right}
+.sum .kv b.dim{color:#B8C2BD;font-weight:400}
+.cta{margin-top:26px}.cta .btn{width:100%;padding:22px;font-size:19px;font-weight:700;border-radius:12px}
+
+/* 名單 / 統計 / 醫師 */
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.bar select,.bar input{padding:10px 12px;border:1px solid var(--line);border-radius:10px;height:44px;background:#fff}
+.bar .btn.sm{height:44px;padding:0 14px;font-size:14px;border-radius:10px}
+.bar label.ck{font-size:14px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.card h2{font-size:18px;margin:0 0 16px;display:flex;align-items:center;gap:10px}.card h2 .sub{font-size:13px;color:var(--mut);font-weight:400}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{font-size:13px;color:var(--mut);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tr.cancel td{background:var(--red-l);color:#8E2A20}tr.cancel td.name b{text-decoration:line-through}
+tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb-l)}
+.st{font-weight:700;font-size:12px;border-radius:6px;padding:3px 9px;white-space:nowrap}
+.st.待報到{background:var(--blue-l);color:var(--blue)}.st.已報到{background:var(--teal-l);color:var(--teal)}
+.st.取消-LINE,.st.取消-電話{background:var(--red);color:#fff}.st.未回診{background:var(--amb);color:#fff}
+.ops{display:flex;gap:6px;flex-wrap:wrap}.tw{overflow:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi small{display:block;color:var(--mut);font-size:13px}.kpi b{font-size:28px;font-weight:700}.kpi.hl{border-color:var(--teal);background:var(--teal-l)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:900px){.g2{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:22px}
+
+/* modal / toast */
+.ov{position:fixed;inset:0;background:rgba(20,30,26,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.md{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:460px;box-shadow:0 24px 70px rgba(0,0,0,.25)}
+.md h3{margin:0 0 14px;font-size:20px}.md .kv{display:grid;grid-template-columns:82px 1fr;gap:8px 12px;font-size:15px;margin:12px 0}.md .kv span{color:var(--mut)}
+.qr{text-align:center;margin-top:12px}.qr img{width:160px;height:160px;border:1px solid var(--line);border-radius:10px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1B2B26;color:#fff;padding:12px 20px;border-radius:12px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
+#toast.show{opacity:1}#toast.err{background:var(--red)}#toast.ok{background:var(--teal)}
 </style>
 </head>
 <body>
@@ -97,50 +160,72 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 <!-- ================= 登入 ================= -->
 <div id="login">
   <div class="lbox">
-    <div class="logo"><div class="mark">金</div><h1>門診預約系統<small>金鶯診所 · 健保門診預約 / 回診提醒</small></h1></div>
+    <div class="brand"><div class="mark">+</div><h1>健保門診預約系統<small>金鶯診所 · 櫃檯預約 / 回診 LINE 提醒 / 報到統計</small></h1></div>
     <div class="fld"><label>員工編號</label><input id="l-id" autocomplete="username" placeholder="例：0001" inputmode="numeric"></div>
-    <div class="fld"><label>密碼</label><input id="l-pw" type="password" autocomplete="current-password" placeholder="員工資料庫登入密碼"></div>
-    <button class="btn w" id="l-btn" onclick="doLogin()">登入</button>
+    <div class="fld"><label>密碼</label><input id="l-pw" type="password" autocomplete="current-password" placeholder="與員工入口網相同"></div>
+    <button class="btn" style="width:100%;padding:15px;font-size:16px" id="l-btn" onclick="doLogin()">登入</button>
     <div class="err" id="l-err"></div>
-    <div class="note" style="margin-top:10px">帳號密碼與員工入口網相同。登入後只會看到您所屬院區的預約資料。</div>
+    <div class="note plain" style="margin-top:14px">登入後只會看到您所屬院區的預約資料；管理團隊可切換院區。</div>
   </div>
 </div>
 
 <!-- ================= 主畫面 ================= -->
 <div id="app" class="hidden">
 <header><div class="hin">
-  <div class="mark">金</div>
-  <div class="ttl">門診預約系統<small id="h-sync"></small></div>
+  <div class="brand"><div class="mark">+</div><h1>金鶯診所 · 健保門診預約系統</h1></div>
   <nav>
     <button class="on" data-v="book" onclick="showView('book')">新增預約</button>
-    <button data-v="list" onclick="showView('list')">每日名單／報到</button>
-    <button data-v="stats" onclick="showView('stats')">統計</button>
+    <button data-v="list" onclick="showView('list')">每日名單</button>
+    <button data-v="stats" onclick="showView('stats')">後台統計</button>
     <button data-v="doc" onclick="showView('doc')">醫師名單</button>
   </nav>
-  <div class="who"><b id="u-name"></b><span id="u-title"></span> <span class="chip" id="u-clinic"></span><br><a href="#" onclick="logout();return false" style="color:var(--mut);font-size:12px">登出</a></div>
+  <div class="hr">
+    <div class="clock" id="clock"></div>
+    <div class="who"><div class="avatar" id="u-av"></div><div class="txt"><span id="u-name"></span><span class="role"><span class="sep">·</span><span id="u-title"></span></span><span class="sep">·</span><span id="u-clinic"></span></div><a href="#" onclick="logout();return false">登出</a></div>
+  </div>
 </div></header>
 
 <main>
   <!-- ---------- 新增預約 ---------- -->
-  <section id="v-book">
-    <div class="card">
-      <h2>預約條件</h2>
-      <div class="grid g3">
-        <div class="fld"><label>院區</label><select id="b-clinic" onchange="onClinicChange()"></select></div>
-        <div class="fld"><label>日期</label><input type="date" id="b-date" onchange="loadSlots()"></div>
-        <div class="fld"><label>看診醫師</label><select id="b-doctor"><option value="">請選擇</option></select></div>
+  <section id="v-book" class="book">
+    <div class="col col1">
+      <div class="card">
+        <h3 class="step">STEP 1 <span>· 選擇院區與醫師</span></h3>
+        <div class="fld"><label>院區 <span id="b-clinic-n"></span></label><select id="b-clinic" onchange="onClinicChange()"></select></div>
+        <div class="fld"><label>看診醫師（依官網醫療團隊帶入）</label><select id="b-doctor" onchange="renderSummary()"><option value="不指定醫師">不指定醫師</option></select></div>
+        <div class="note" id="doc-note">ⓘ 醫師名單每日自動同步官網各院區醫療團隊；可在「醫師名單」頁手動新增或停用。</div>
       </div>
-      <div class="fld"><label>時段 <span class="note" id="slot-cap"></span></label><div class="slots" id="slots"><div class="empty">請先選擇院區與日期</div></div></div>
+      <div class="card">
+        <h3 class="step">STEP 2 <span>· 選擇日期</span></h3>
+        <div class="cal-h"><button onclick="calMove(-1)">‹</button><b id="cal-title"></b><button onclick="calMove(1)">›</button></div>
+        <div class="cal" id="cal"></div>
+        <div class="legend"><span><i class="sel"></i>已選日期</span><span><i class="today"></i>今天</span></div>
+      </div>
     </div>
-    <div class="card">
-      <h2>民眾資料 <span class="sub">輸入姓名或身分證前 4 碼即可帶出歷史紀錄</span></h2>
-      <div class="grid g3">
-        <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名搜尋…" autocomplete="off" oninput="acInput(this.value)" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
-        <div class="fld"><label>身分證字號</label><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint()"><div class="note" id="pid-hint"></div></div>
-        <div class="fld"><label>預約方式</label><div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div></div>
+
+    <div class="col col2">
+      <div class="card" style="min-height:560px;display:flex;flex-direction:column">
+        <div class="sl-head">
+          <div><h3 class="step" style="margin-bottom:8px">STEP 3 <span>· 選擇時段（每小時一格）</span></h3><div class="sl-title" id="sl-title">請先選擇院區與日期</div></div>
+          <div class="sl-legend"><span><i></i>可預約</span><span><i class="amb"></i>即將額滿</span><span><i class="grey"></i>額滿 / 休診</span></div>
+        </div>
+        <div id="slots" style="flex:1"><div class="empty">載入中…</div></div>
+        <div class="note plain foot-note">🕓 每小時上限人數可於後台「院區代碼」分頁依院區設定；休診時段不顯示。</div>
       </div>
-      <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
-      <div class="row" style="justify-content:flex-end"><button class="btn sec" onclick="resetForm()">清除</button><button class="btn" id="b-submit" onclick="submitBooking()">建立預約</button></div>
+    </div>
+
+    <div class="col col3">
+      <div class="card">
+        <h3 class="step">STEP 4 <span>· 預約方式與民眾資料</span></h3>
+        <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
+        <div class="fld"><label>身分證字號（LINE 綁定比對鍵）</label>
+          <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();renderSummary()" onkeydown="if(event.key==='Enter')pidLookup()"><button class="btn" onclick="pidLookup()">帶入</button></div>
+          <div class="hint" id="pid-hint"></div></div>
+        <div class="fld ac"><label>姓名（輸入即搜尋歷史預約）</label><input id="b-name" placeholder="輸入姓名…" autocomplete="off" oninput="acInput(this.value);renderSummary()" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
+        <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
+        <div class="sum"><h5>預約摘要</h5><div id="sum"></div></div>
+        <div class="cta"><button class="btn" id="b-submit" onclick="submitBooking()">確認預約</button></div>
+      </div>
     </div>
   </section>
 
@@ -148,13 +233,13 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <section id="v-list" class="hidden">
     <div class="card">
       <h2>每日預約名單 <span class="sub" id="list-sum"></span></h2>
-      <div class="row" style="margin-bottom:12px">
+      <div class="bar">
         <select id="li-clinic" onchange="loadList()"></select>
-        <button class="btn sec sm" onclick="shiftDate(-1)">◀</button>
-        <input type="date" id="li-date" onchange="loadList()" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
-        <button class="btn sec sm" onclick="shiftDate(1)">▶</button>
+        <button class="btn sec sm" onclick="shiftDate(-1)">‹</button>
+        <input type="date" id="li-date" onchange="loadList()">
+        <button class="btn sec sm" onclick="shiftDate(1)">›</button>
         <button class="btn sec sm" onclick="setToday()">今天</button>
-        <label style="font-size:13px;color:var(--mut);margin-left:6px"><input type="checkbox" id="li-hidecancel" onchange="renderList()"> 隱藏取消</label>
+        <label class="ck"><input type="checkbox" id="li-hidecancel" onchange="renderList()"> 隱藏取消</label>
         <button class="btn ghost sm" style="margin-left:auto" onclick="loadList()">重新整理</button>
       </div>
       <div class="tw"><table><thead><tr><th>時段</th><th>序</th><th>醫師</th><th>姓名</th><th>身分證</th><th>方式</th><th>LINE</th><th>狀態</th><th>建立</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
@@ -163,20 +248,19 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   </section>
 
   <!-- ---------- 統計 ---------- -->
-  <section id="v-stats" class="hidden">
+  <section id="v-stats" class="hidden stack">
     <div class="card">
-      <h2>報到統計與未回診名單</h2>
-      <div class="row" style="margin-bottom:12px">
+      <h2>報到統計</h2>
+      <div class="bar">
         <select id="st-clinic"></select>
-        <input type="date" id="st-from" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px"> ～
-        <input type="date" id="st-to" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <input type="date" id="st-from"> <span style="color:var(--mut)">～</span> <input type="date" id="st-to">
         <button class="btn sec sm" onclick="stPreset(0)">今天</button><button class="btn sec sm" onclick="stPreset(7)">近 7 天</button><button class="btn sec sm" onclick="stPreset(30)">近 30 天</button>
         <button class="btn sm" onclick="loadStats()">查詢</button>
       </div>
       <div class="kpis" id="st-kpi"></div>
-      <div class="grid g2">
-        <div><h3 style="font-size:14px;margin:6px 0">各院區</h3><div class="tw"><table><thead><tr><th>院區</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-clinic-body"></tbody></table></div></div>
-        <div><h3 style="font-size:14px;margin:6px 0">各醫師</h3><div class="tw"><table><thead><tr><th>院區 / 醫師</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-doc-body"></tbody></table></div></div>
+      <div class="g2">
+        <div><h4 style="margin:6px 0 8px;font-size:15px">各院區</h4><div class="tw"><table><thead><tr><th>院區</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-clinic-body"></tbody></table></div></div>
+        <div><h4 style="margin:6px 0 8px;font-size:15px">各醫師</h4><div class="tw"><table><thead><tr><th>院區 / 醫師</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-doc-body"></tbody></table></div></div>
       </div>
     </div>
     <div class="card">
@@ -190,9 +274,9 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <section id="v-doc" class="hidden">
     <div class="card">
       <h2>醫師名單 <span class="sub">每日 05:30 自動同步官網各院區醫療團隊；可手動新增或停用</span></h2>
-      <div class="row" style="margin-bottom:12px">
+      <div class="bar">
         <select id="dc-clinic" onchange="loadDoctors()"></select>
-        <input id="dc-new" placeholder="手動新增醫師姓名" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <input id="dc-new" placeholder="手動新增醫師姓名">
         <button class="btn sm" onclick="addDoctor()">新增</button>
         <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">立即同步官網</button>
       </div>
@@ -209,8 +293,9 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 // ==================== 設定 ====================
 var API = 'https://script.google.com/macros/s/AKfycby0VcU__CbiQqa0sM_q_iXc5BwWS4Wb00ivQiOprhapTYWauxu8M0xvG08hXtgDudBIXQ/exec';
 var LS_KEY = 'eliteBookingUser';
+var WD = ['日','一','二','三','四','五','六'];
 
-var S = { token:'', user:null, clinics:[], doctors:[], settings:{}, today:'', type:'電話預約', slot:'', list:[], acTimer:null, docList:[] };
+var S = { token:'', user:null, clinics:[], doctors:[], settings:{}, today:'', date:'', calY:0, calM:0, type:'電話預約', slot:'', slotLabel:'', list:[], view:[], acTimer:null, acList:[], docList:[], bound:null };
 
 // ==================== API ====================
 function get(params, cb, btn) {
@@ -259,29 +344,30 @@ function enterApp() {
   get({ action:'getInit' }, function(d) {
     if (d.error) { toast(d.error, 'err'); logout(); return; }
     S.user = d.user; S.clinics = d.clinics; S.doctors = d.doctors; S.settings = d.settings; S.today = d.today;
+    S.date = S.today; var t = new Date(S.today + 'T00:00:00'); S.calY = t.getFullYear(); S.calM = t.getMonth();
     document.getElementById('u-name').textContent = S.user.name;
-    document.getElementById('u-title').textContent = S.user.title || '';
+    document.getElementById('u-av').textContent = (S.user.name || '?').charAt(0);
+    document.getElementById('u-title').textContent = S.user.title || (S.user.isAdmin ? '管理者' : '櫃檯');
     document.getElementById('u-clinic').textContent = S.user.isAdmin ? '全院區' : (S.user.clinicName + '院區');
-    document.getElementById('h-sync').textContent = '醫師名單同步：' + (S.settings.doctorSync || '尚未') + '　LINE 綁定同步：' + (S.settings.bindSync || '尚未');
     if (!S.user.isAdmin && !S.user.clinicCode) toast('您的所屬院區「' + S.user.clinic + '」不在院區代碼表中，請通知管理者', 'err');
     fillClinicSelects();
-    document.getElementById('b-date').value = S.today; document.getElementById('b-date').min = S.today;
     document.getElementById('li-date').value = S.today;
     stPreset(7);
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
-    onClinicChange();
+    renderCal(); onClinicChange();
   });
 }
 
 function fillClinicSelects() {
-  var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
+  var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">金鶯診所 ' + c.name + '院區</option>'; }).join('');
   var all = S.user.isAdmin ? '<option value="">全部院區</option>' : '';
   document.getElementById('b-clinic').innerHTML = opts;
+  document.getElementById('b-clinic-n').textContent = '（共 ' + S.clinics.length + ' 個）';
   document.getElementById('li-clinic').innerHTML = all + opts;
   document.getElementById('st-clinic').innerHTML = all + opts;
   document.getElementById('dc-clinic').innerHTML = all + opts;
-  ['b-clinic','li-clinic','st-clinic','dc-clinic'].forEach(function(id){ var el = document.getElementById(id); el.disabled = !S.user.isAdmin && S.clinics.length <= 1; });
+  ['b-clinic','li-clinic','st-clinic','dc-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.user.isAdmin && S.clinics.length <= 1; });
 }
 
 // 自動登入
@@ -293,6 +379,13 @@ function fillClinicSelects() {
   } catch (e) {}
 })();
 
+// 時鐘
+(function tick() {
+  var n = new Date();
+  document.getElementById('clock').textContent = n.getFullYear() + '/' + p2(n.getMonth() + 1) + '/' + p2(n.getDate()) + '（' + WD[n.getDay()] + '）　' + p2(n.getHours()) + ':' + p2(n.getMinutes());
+  setTimeout(tick, 15000);
+})();
+
 // ==================== 視圖 ====================
 function showView(v) {
   ['book','list','stats','doc'].forEach(function(k){ document.getElementById('v-' + k).classList.toggle('hidden', k !== v); });
@@ -300,111 +393,152 @@ function showView(v) {
   if (v === 'list') loadList(); if (v === 'stats') loadStats(); if (v === 'doc') loadDoctors();
 }
 
-// ==================== 新增預約 ====================
+// ==================== STEP 1 ====================
+function clinicName() { var c = S.clinics.filter(function(x){ return x.code === document.getElementById('b-clinic').value; })[0]; return c ? c.name + '院區' : ''; }
 function onClinicChange() {
   var code = document.getElementById('b-clinic').value;
   var docs = S.doctors.filter(function(d){ return d.clinicCode === code; });
-  document.getElementById('b-doctor').innerHTML = '<option value="">請選擇</option>' + docs.map(function(d){ return '<option>' + d.name + '</option>'; }).join('');
+  document.getElementById('b-doctor').innerHTML = '<option value="不指定醫師">不指定醫師</option>' + docs.map(function(d){ return '<option>' + esc(d.name) + '</option>'; }).join('');
+  document.getElementById('doc-note').innerHTML = docs.length ? 'ⓘ 此院區目前 ' + docs.length + ' 位醫師（官網同步：' + (S.settings.doctorSync || '尚未') + '）。' : 'ⓘ 此院區尚無醫師名單，請至「醫師名單」按「立即同步官網」或手動新增。';
   loadSlots();
 }
+
+// ==================== STEP 2 月曆 ====================
+function renderCal() {
+  var y = S.calY, m = S.calM;
+  document.getElementById('cal-title').textContent = y + ' 年 ' + (m + 1) + ' 月';
+  var first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
+  var html = WD.map(function(w){ return '<div class="wd">' + w + '</div>'; }).join('');
+  for (var i = 0; i < 42; i++) {
+    var d = new Date(start); d.setDate(start.getDate() + i);
+    var k = ymd(d), out = d.getMonth() !== m, past = k < S.today;
+    var cls = 'd' + (out ? ' out' : '') + (past && !out ? ' past' : '') + (k === S.today ? ' today' : '') + (k === S.date ? ' sel' : '');
+    html += '<div class="' + cls + '"' + (out || past ? '' : ' onclick="pickDate(\'' + k + '\')"') + '>' + d.getDate() + '</div>';
+    if (i === 34 && new Date(start.getTime() + 35 * 864e5).getMonth() !== m) break;
+  }
+  document.getElementById('cal').innerHTML = html;
+}
+function calMove(n) { var d = new Date(S.calY, S.calM + n, 1); S.calY = d.getFullYear(); S.calM = d.getMonth(); renderCal(); }
+function pickDate(k) { S.date = k; var d = new Date(k + 'T00:00:00'); S.calY = d.getFullYear(); S.calM = d.getMonth(); renderCal(); loadSlots(); }
+function dateTxt(k) { if (!k) return ''; var d = new Date(k + 'T00:00:00'); return k.replace(/-/g, '/') + '（' + WD[d.getDay()] + '）'; }
+
+// ==================== STEP 3 時段 ====================
 function loadSlots() {
-  var code = document.getElementById('b-clinic').value, date = document.getElementById('b-date').value;
-  S.slot = '';
-  if (!code || !date) return;
+  var code = document.getElementById('b-clinic').value;
+  S.slot = ''; S.slotLabel = ''; renderSummary();
+  document.getElementById('sl-title').textContent = clinicName() + ' · ' + dateTxt(S.date);
+  if (!code || !S.date) { document.getElementById('slots').innerHTML = '<div class="empty">請先選擇院區與日期</div>'; return; }
   document.getElementById('slots').innerHTML = '<div class="empty">載入中…</div>';
-  get({ action:'getSlots', clinicCode:code, date:date }, function(d) {
-    if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + d.error + '</div>'; return; }
-    document.getElementById('slot-cap').textContent = '（每時段上限 ' + d.cap + ' 人）';
-    var html = d.slots.map(function(s) {
-      var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.8;
-      return '<div class="slot' + (full ? ' full' : '') + (warn ? ' warn' : '') + '" data-k="' + s.key + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.label + '</b><small>' + (full ? '已滿' : '已約 ' + s.count + ' 人') + '</small></div>';
-    }).join('');
+  get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
+    if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
+    var groups = [ { t:'上午診', f:function(h){ return h < 12; } }, { t:'下午診', f:function(h){ return h >= 12 && h < 18; } }, { t:'晚間診', f:function(h){ return h >= 18; } } ];
+    var html = '';
+    groups.forEach(function(g) {
+      var list = d.slots.filter(function(s){ return g.f(s.hour); }); if (!list.length) return;
+      var lo = list[0], hi = list[list.length - 1];
+      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + p2(hi.hour + 1) + ':00</h4><div class="slots">';
+      list.forEach(function(s) {
+        var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75;
+        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–<br>' + p2(s.hour + 1) + ':00</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
+      });
+      for (var i = list.length % 4; i > 0 && i < 4; i++) html += '<div class="slot ph">—</div>';
+      html += '</div></div>';
+    });
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
   });
 }
 function pickSlot(el, full) {
-  if (full) { toast('此時段已滿', 'err'); return; }
-  document.querySelectorAll('.slot').forEach(function(s){ s.classList.remove('on'); });
-  el.classList.add('on'); S.slot = el.dataset.k;
+  if (full) { toast('此時段已額滿', 'err'); return; }
+  document.querySelectorAll('.slot.on').forEach(function(s){ s.classList.remove('on'); s.querySelector('small').textContent = s.dataset.c; });
+  el.classList.add('on'); el.querySelector('small').textContent = el.dataset.c + ' · 已選取';
+  S.slot = el.dataset.k; S.slotLabel = el.dataset.l; renderSummary();
 }
-function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button').forEach(function(b){ b.classList.toggle('on', b === btn); }); }
 
-// 姓名記憶
+// ==================== STEP 4 ====================
+function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button').forEach(function(b){ b.classList.toggle('on', b === btn); }); renderSummary(); }
+
 function acInput(v) {
-  clearTimeout(S.acTimer);
+  clearTimeout(S.acTimer); S.bound = null; pidHint();
   if (v.trim().length < 1) { acHide(); return; }
   S.acTimer = setTimeout(function() {
     get({ action:'searchPatient', q:v.trim() }, function(d) {
       if (d.error || !d.list) return;
-      S.acList = d.list;
-      var box = document.getElementById('acl');
+      S.acList = d.list; var box = document.getElementById('acl');
       if (!d.list.length) { acHide(); return; }
-      box.innerHTML = d.list.map(function(p, i) {
-        return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b> <span style="color:var(--mut)">' + p.pidMasked + '</span></div><small>' + (p.bound ? '<span class="tag ok">LINE</span> ' : '') + (p.lastDate ? p.lastDate + ' ' + esc(p.lastClinic) + ' ' + esc(p.lastDoctor) : '') + '</small></div>';
+      box.innerHTML = '<div class="h">歷史預約 / 綁定紀錄，點選自動帶入</div>' + d.list.map(function(p, i) {
+        var dt = p.lastDate ? p.lastDate.slice(5).replace('-', '/') : '';
+        return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span></div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (dt ? ' · ' + dt : '') + '</div></div>';
       }).join('');
       box.classList.remove('hidden');
     });
   }, 250);
 }
-function acPick(i) {
-  var p = S.acList[i]; if (!p) return;
-  document.getElementById('b-name').value = p.name;
-  document.getElementById('b-pid').value = p.pid;
-  pidHint(p.bound); acHide();
-}
+function acPick(i) { var p = S.acList[i]; if (!p) return; document.getElementById('b-name').value = p.name; document.getElementById('b-pid').value = p.pid; S.bound = p.bound; pidHint(); acHide(); renderSummary(); }
 function acHide() { document.getElementById('acl').classList.add('hidden'); }
-function pidHint(bound) {
+function pidLookup() {
+  var pid = document.getElementById('b-pid').value.trim();
+  if (pid.length < 4) return toast('請至少輸入身分證前 4 碼', 'err');
+  get({ action:'searchPatient', q:pid }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    var hit = d.list.filter(function(p){ return p.pid === pid; })[0] || (d.list.length === 1 ? d.list[0] : null);
+    if (!hit) { S.bound = null; pidHint(); return toast('查無此身分證的歷史紀錄，請直接輸入姓名', ''); }
+    document.getElementById('b-name').value = hit.name; document.getElementById('b-pid').value = hit.pid; S.bound = hit.bound; pidHint(); renderSummary();
+    toast('已帶入 ' + hit.name, 'ok');
+  });
+}
+function pidHint() {
   var v = document.getElementById('b-pid').value, h = document.getElementById('pid-hint');
-  if (v.length === 10 && !/^[A-Z][A-D0-9]\d{8}$/.test(v)) { h.innerHTML = '<span style="color:var(--red)">格式不正確</span>'; return; }
-  h.innerHTML = bound === true ? '<span class="tag ok">已綁定 LINE，前一天會自動提醒</span>' : (bound === false ? '<span class="tag no">尚未綁定 LINE</span>' : '');
+  if (v.length === 10 && !/^[A-Z][A-D0-9]\d{8}$/.test(v)) { h.innerHTML = '<span style="color:var(--red)">身分證格式不正確</span>'; return; }
+  h.innerHTML = S.bound === true ? '<span class="tag ok">LINE 已綁定 · 前一天自動提醒</span>' : (S.bound === false ? '<span class="tag no">尚未綁定 LINE</span>' : '');
+}
+function renderSummary() {
+  var doc = document.getElementById('b-doctor').value, name = document.getElementById('b-name').value.trim(), pid = document.getElementById('b-pid').value.trim();
+  function row(k, v) { return '<div class="kv"><span>' + k + '</span><b' + (v ? '' : ' class="dim"') + '>' + (v || '—') + '</b></div>'; }
+  document.getElementById('sum').innerHTML = row('方式', S.type) + row('院區', clinicName()) + row('日期', dateTxt(S.date)) + row('時段', S.slotLabel) + row('醫師', doc) + row('民眾', name ? esc(name) + (pid.length === 10 ? '　' + mask(pid) : '') : '');
 }
 
 function submitBooking() {
-  var p = { action:'createBooking', clinicCode:document.getElementById('b-clinic').value, date:document.getElementById('b-date').value,
-            slot:S.slot, doctor:document.getElementById('b-doctor').value, name:document.getElementById('b-name').value.trim(),
-            pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim() };
+  var p = { action:'createBooking', clinicCode:document.getElementById('b-clinic').value, date:S.date, slot:S.slot, doctor:document.getElementById('b-doctor').value,
+            name:document.getElementById('b-name').value.trim(), pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim() };
   if (!p.clinicCode) return toast('請選擇院區', 'err');
   if (!p.date) return toast('請選擇日期', 'err');
   if (!p.slot) return toast('請選擇時段', 'err');
-  if (!p.doctor) return toast('請選擇看診醫師', 'err');
-  if (!p.name) return toast('請輸入姓名', 'err');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(p.pid)) return toast('身分證字號格式不正確', 'err');
+  if (!p.name) return toast('請輸入姓名', 'err');
   get(p, function(d) {
     if (d.error) return toast(d.error, 'err');
-    var clinic = S.clinics.filter(function(c){ return c.code === p.clinicCode; })[0];
     var line = d.bound
-      ? '<div class="tag ok" style="font-size:13px;padding:6px 10px">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— 看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒</div>'
-      : '<div class="tag no" style="font-size:13px;padding:6px 10px">尚未綁定 LINE，無法推播提醒</div>' +
-        (d.lineAddUrl ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(d.lineAddUrl) + '" alt="LINE QR"><div class="note">請民眾掃描加入金鶯診所 LINE 並完成綁定（填寫姓名＋身分證）</div></div>' : '<div class="note" style="margin-top:6px">請引導民眾加入金鶯診所 LINE 官方帳號並完成綁定。</div>');
-    openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + esc(clinic ? clinic.name : '') + '院區</b><span>日期時段</span><b>' + p.date + '　' + p.slot + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
-      '<div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" onclick="closeModal()">完成</button></div>');
+      ? '<div class="tag ok" style="font-size:14px;padding:8px 12px;white-space:normal">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— 看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒</div>'
+      : '<div class="tag no" style="font-size:14px;padding:8px 12px">尚未綁定 LINE，無法推播提醒</div>' +
+        (d.lineAddUrl ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(d.lineAddUrl) + '" alt="LINE QR"><div style="font-size:13px;color:var(--mut);margin-top:6px">請民眾掃描加入金鶯診所 LINE 並完成綁定（填寫姓名＋身分證）</div></div>' : '<div style="font-size:13px;color:var(--mut);margin-top:8px">請引導民眾加入金鶯診所 LINE 官方帳號並完成綁定。</div>');
+    openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + clinicName() + '</b><span>日期時段</span><b>' + dateTxt(p.date) + '　' + S.slotLabel + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
+      '<div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn" onclick="closeModal()">完成</button></div>');
     resetForm(); loadSlots();
   }, document.getElementById('b-submit'));
 }
 function resetForm() {
   document.getElementById('b-name').value = ''; document.getElementById('b-pid').value = ''; document.getElementById('b-note').value = '';
-  document.getElementById('pid-hint').innerHTML = ''; S.slot = ''; document.querySelectorAll('.slot').forEach(function(s){ s.classList.remove('on'); });
+  S.bound = null; pidHint(); S.slot = ''; S.slotLabel = ''; renderSummary();
 }
 
 // ==================== 每日名單 ====================
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
 function loadList() {
-  var code = document.getElementById('li-clinic').value, date = document.getElementById('li-date').value;
-  get({ action:'getBookings', clinicCode:code, date:date }, function(d) {
+  get({ action:'getBookings', clinicCode:document.getElementById('li-clinic').value, date:document.getElementById('li-date').value }, function(d) {
     if (d.error) return toast(d.error, 'err');
     S.list = d.list; renderList();
   });
 }
 function renderList() {
   var hide = document.getElementById('li-hidecancel').checked;
-  var body = document.getElementById('li-body'); var rows = S.list.filter(function(b){ return !(hide && /取消/.test(b.status)); });
-  var cnt = { all:S.list.length, done:0, cancel:0, pend:0 };
+  var rows = S.list.filter(function(b){ return !(hide && /取消/.test(b.status)); });
+  var cnt = { done:0, cancel:0, pend:0 };
   S.list.forEach(function(b){ if (b.status === '已報到') cnt.done++; else if (/取消/.test(b.status)) cnt.cancel++; else if (b.status === '待報到') cnt.pend++; });
-  document.getElementById('list-sum').textContent = '共 ' + cnt.all + ' 筆 · 待報到 ' + cnt.pend + ' · 已報到 ' + cnt.done + ' · 取消 ' + cnt.cancel;
+  document.getElementById('list-sum').textContent = dateTxt(document.getElementById('li-date').value) + '　共 ' + S.list.length + ' 筆 · 待報到 ' + cnt.pend + ' · 已報到 ' + cnt.done + ' · 取消 ' + cnt.cancel;
   document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
   var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin;
-  body.innerHTML = rows.map(function(b, i) {
+  document.getElementById('li-body').innerHTML = rows.map(function(b, i) {
     var cls = /取消/.test(b.status) ? 'cancel' : (b.status === '已報到' ? 'done' : (b.status === '未回診' ? 'noshow' : ''));
     var line = b.lineReply === '確認' ? '<span class="tag ok">確認會來</span>' : (b.lineReply === '取消' ? '<span class="tag red">LINE 取消</span>' : (b.pushed ? '<span class="tag blue">已提醒</span>' : '<span class="tag no">—</span>'));
     var ops = '';
@@ -414,21 +548,18 @@ function renderList() {
     else if (b.status === '未回診') ops = '<button class="btn sm sec" onclick="opCheck(' + i + ',false)">補報到</button>';
     return '<tr class="' + cls + '"><td><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td>' + (showClinic ? '<small style="color:var(--mut)">' + esc(b.clinicName) + '</small><br>' : '') + esc(b.doctor) + '</td><td class="name"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="tag amb">回診</span>' : '<span class="tag blue">電話</span>') + '</td><td>' + line + '</td><td><span class="st ' + b.status + '">' + b.status + '</span>' + (b.checkedAt ? '<br><small style="color:var(--mut)">' + b.checkedAt.slice(11) + ' ' + esc(b.checkedBy) + '</small>' : '') + (b.cancelAt ? '<br><small>' + b.cancelAt.slice(5) + ' ' + esc(b.cancelBy) + '</small>' : '') + '</td><td><small style="color:var(--mut)">' + esc(b.createdBy) + '<br>' + b.created.slice(5) + '</small></td><td><div class="ops">' + ops + '</div></td></tr>';
   }).join('');
-  S.view = rows; // 操作按鈕的 index 對應過濾後的陣列
+  S.view = rows;
 }
 function opCheck(i, undo) { var b = S.view[i]; if (!b) return; get({ action:'checkIn', id:b.id, undo:undo ? '1' : '0' }, function(d){ if (d.error) return toast(d.error, 'err'); toast(undo ? '已取消報到' : b.name + ' 報到完成', 'ok'); loadList(); }); }
 function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); loadList(); }); }
 function opRestore(i) { var b = S.view[i]; if (!b) return; get({ action:'restoreBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已復原為待報到', 'ok'); loadList(); }); }
 
 // ==================== 統計 ====================
-function stPreset(n) {
-  var t = new Date(S.today + 'T00:00:00'); var f = new Date(t); f.setDate(f.getDate() - n + (n ? 1 : 0));
-  document.getElementById('st-from').value = ymd(f); document.getElementById('st-to').value = S.today;
-}
+function stPreset(n) { var t = new Date(S.today + 'T00:00:00'); var f = new Date(t); f.setDate(f.getDate() - n + (n ? 1 : 0)); document.getElementById('st-from').value = ymd(f); document.getElementById('st-to').value = S.today; }
 function loadStats() {
   get({ action:'getStats', clinicCode:document.getElementById('st-clinic').value, from:document.getElementById('st-from').value, to:document.getElementById('st-to').value }, function(d) {
     if (d.error) return toast(d.error, 'err');
-    var s = d.summary; var rate = s.total ? Math.round(s.checked / (s.total - s.cancelLine - s.cancelPhone || 1) * 100) : 0;
+    var s = d.summary; var base = s.total - s.cancelLine - s.cancelPhone; var rate = base ? Math.round(s.checked / base * 100) : 0;
     document.getElementById('st-kpi').innerHTML =
       kpi('預約總數', s.total) + kpi('電話預約', s.phone) + kpi('回診預約', s.revisit) + kpi('已報到', s.checked, true) + kpi('報到率', rate + '%', true) +
       kpi('待報到', s.pending) + kpi('取消（LINE）', s.cancelLine) + kpi('取消（電話）', s.cancelPhone) + kpi('未回診', s.noShow) + kpi('LINE 已提醒', s.pushed) + kpi('LINE 確認會來', s.confirmed);
@@ -470,16 +601,17 @@ function syncDoctorsNow() {
     loadDoctors(); refreshInit();
   }, document.getElementById('dc-sync'));
 }
-function refreshInit() { get({ action:'getInit' }, function(d){ if (d.error) return; S.doctors = d.doctors; S.settings = d.settings; document.getElementById('h-sync').textContent = '醫師名單同步：' + (S.settings.doctorSync || '尚未') + '　LINE 綁定同步：' + (S.settings.bindSync || '尚未'); onClinicChange(); }); }
+function refreshInit() { get({ action:'getInit' }, function(d){ if (d.error) return; S.doctors = d.doctors; S.settings = d.settings; onClinicChange(); }); }
 
 // ==================== 工具 ====================
 function openModal(html) { document.getElementById('modal-body').innerHTML = html; document.getElementById('modal').classList.remove('hidden'); }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 var toastTimer;
-function toast(msg, type) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + (type || ''); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className = ''; }, 2600); }
+function toast(msg, type) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + (type || ''); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className = ''; }, 3200); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
 function mask(p) { return p.length === 10 ? p.slice(0,3) + '****' + p.slice(7) : p; }
-function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function p2(n) { return (n < 10 ? '0' : '') + n; }
+function ymd(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
 </script>
 </body>
 </html>
