@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>金鶯診所 門診預約系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --g:#1E7F5C; --g2:#166647; --gl:#E6F3ED; --bg:#F3F6F4; --card:#FFFFFF; --tx:#1B2B26; --mut:#6B7C75; --line:#DCE5E0;
+  --red:#C0392B; --redl:#FDEDEB; --amb:#B7791F; --ambl:#FFF6E3; --blue:#2C6FB2; --bluel:#E8F0FA; --r:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--tx);font-size:15px}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:15px;color:var(--tx)}
+.hidden{display:none!important}
+/* ---------- 登入 ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lbox{background:var(--card);border-radius:20px;padding:34px 30px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(27,43,38,.08)}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.logo .mark{width:44px;height:44px;border-radius:12px;background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.logo h1{font-size:19px;margin:0;line-height:1.3}.logo small{display:block;font-size:12px;color:var(--mut);font-weight:400}
+.fld{margin-bottom:14px}.fld label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+.fld input,.fld select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+.fld input:focus,.fld select:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(30,127,92,.15)}
+.btn{border:none;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:500;background:var(--g);color:#fff;transition:.15s}
+.btn:hover{background:var(--g2)}.btn:disabled{opacity:.5;cursor:default}
+.btn.w{width:100%}.btn.sec{background:#fff;color:var(--tx);border:1px solid var(--line)}.btn.sec:hover{background:var(--gl)}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:8px}.btn.red{background:var(--red)}.btn.red:hover{background:#A93226}
+.btn.ghost{background:transparent;color:var(--g);border:1px solid var(--g)}.btn.ghost:hover{background:var(--gl)}
+.err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
+/* ---------- 版面 ---------- */
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.hin{max-width:1180px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px}
+.hin .mark{width:34px;height:34px;border-radius:9px;background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.hin .ttl{font-weight:700;font-size:16px}.hin .ttl small{display:block;font-size:11px;color:var(--mut);font-weight:400}
+nav{display:flex;gap:4px;margin-left:18px;flex-wrap:wrap}
+nav button{background:transparent;border:none;padding:8px 12px;border-radius:8px;font-size:14px;color:var(--mut)}
+nav button.on{background:var(--gl);color:var(--g);font-weight:700}
+.who{margin-left:auto;text-align:right;font-size:13px;line-height:1.35}.who b{display:block;font-size:14px}.who span{color:var(--mut)}
+.who .chip{display:inline-block;background:var(--gl);color:var(--g);border-radius:20px;padding:1px 9px;font-size:12px;margin-top:2px}
+main{max-width:1180px;margin:0 auto;padding:18px}
+.card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:0 1px 3px rgba(27,43,38,.06);margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:10px}.card h2 .sub{font-size:12px;color:var(--mut);font-weight:400}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.who span{display:none}nav{margin-left:0}}
+@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}.hin{flex-wrap:wrap;gap:8px}.hin .ttl small{display:none}.who{white-space:nowrap}.who b{display:inline;margin-right:6px}nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:7px 8px;font-size:13px}}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:none;background:#fff;padding:9px 16px;font-size:14px;color:var(--mut)}
+.seg button.on{background:var(--g);color:#fff;font-weight:700}
+/* 時段 */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.slot{border:1px solid var(--line);border-radius:10px;padding:9px 6px;text-align:center;background:#fff;font-size:13px;line-height:1.35}
+.slot b{display:block;font-size:14px}.slot small{color:var(--mut)}
+.slot.on{border-color:var(--g);background:var(--gl);color:var(--g);box-shadow:0 0 0 2px rgba(30,127,92,.2)}
+.slot.full{opacity:.45;cursor:not-allowed}.slot.warn small{color:var(--amb)}
+/* 姓名記憶 */
+.ac{position:relative}.acl{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:30;max-height:240px;overflow:auto}
+.aci{padding:9px 12px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;font-size:14px;border-bottom:1px solid #F0F3F1}
+.aci:hover{background:var(--gl)}.aci small{color:var(--mut);font-size:12px}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700}
+.tag.ok{background:var(--gl);color:var(--g)}.tag.no{background:#EEF1EF;color:var(--mut)}
+.tag.red{background:var(--redl);color:var(--red)}.tag.amb{background:var(--ambl);color:var(--amb)}.tag.blue{background:var(--bluel);color:var(--blue)}
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:12px;color:var(--mut);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid #EEF1EF;vertical-align:middle}
+tr.cancel td{background:var(--redl);color:#8E2A20}tr.cancel td.name b{text-decoration:line-through}
+tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--ambl)}
+.st{font-weight:700;font-size:12px;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.st.待報到{background:var(--bluel);color:var(--blue)}.st.已報到{background:var(--gl);color:var(--g)}
+.st.取消-LINE,.st.取消-電話{background:var(--red);color:#fff}.st.未回診{background:var(--amb);color:#fff}
+.ops{display:flex;gap:6px;flex-wrap:wrap}
+.tw{overflow:auto}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi small{display:block;color:var(--mut);font-size:12px}.kpi b{font-size:24px;font-weight:700}.kpi.hl{border-color:var(--g);background:var(--gl)}
+/* modal / toast */
+.ov{position:fixed;inset:0;background:rgba(20,30,26,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.md{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.md h3{margin:0 0 12px;font-size:18px}.md .kv{display:grid;grid-template-columns:70px 1fr;gap:6px 10px;font-size:14px;margin:10px 0}.md .kv span{color:var(--mut)}
+.qr{text-align:center;margin-top:10px}.qr img{width:150px;height:150px;border:1px solid var(--line);border-radius:8px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1B2B26;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
+#toast.show{opacity:1}#toast.err{background:var(--red)}#toast.ok{background:var(--g)}
+.empty{text-align:center;color:var(--mut);padding:30px 0;font-size:14px}
+.note{font-size:12px;color:var(--mut);line-height:1.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ================= 登入 ================= -->
+<div id="login">
+  <div class="lbox">
+    <div class="logo"><div class="mark">金</div><h1>門診預約系統<small>金鶯診所 · 健保門診預約 / 回診提醒</small></h1></div>
+    <div class="fld"><label>員工編號</label><input id="l-id" autocomplete="username" placeholder="例：0001" inputmode="numeric"></div>
+    <div class="fld"><label>密碼</label><input id="l-pw" type="password" autocomplete="current-password" placeholder="員工資料庫登入密碼"></div>
+    <button class="btn w" id="l-btn" onclick="doLogin()">登入</button>
+    <div class="err" id="l-err"></div>
+    <div class="note" style="margin-top:10px">帳號密碼與員工入口網相同。登入後只會看到您所屬院區的預約資料。</div>
+  </div>
+</div>
+
+<!-- ================= 主畫面 ================= -->
+<div id="app" class="hidden">
+<header><div class="hin">
+  <div class="mark">金</div>
+  <div class="ttl">門診預約系統<small id="h-sync"></small></div>
+  <nav>
+    <button class="on" data-v="book" onclick="showView('book')">新增預約</button>
+    <button data-v="list" onclick="showView('list')">每日名單／報到</button>
+    <button data-v="stats" onclick="showView('stats')">統計</button>
+    <button data-v="doc" onclick="showView('doc')">醫師名單</button>
+  </nav>
+  <div class="who"><b id="u-name"></b><span id="u-title"></span> <span class="chip" id="u-clinic"></span><br><a href="#" onclick="logout();return false" style="color:var(--mut);font-size:12px">登出</a></div>
+</div></header>
+
+<main>
+  <!-- ---------- 新增預約 ---------- -->
+  <section id="v-book">
+    <div class="card">
+      <h2>預約條件</h2>
+      <div class="grid g3">
+        <div class="fld"><label>院區</label><select id="b-clinic" onchange="onClinicChange()"></select></div>
+        <div class="fld"><label>日期</label><input type="date" id="b-date" onchange="loadSlots()"></div>
+        <div class="fld"><label>看診醫師</label><select id="b-doctor"><option value="">請選擇</option></select></div>
+      </div>
+      <div class="fld"><label>時段 <span class="note" id="slot-cap"></span></label><div class="slots" id="slots"><div class="empty">請先選擇院區與日期</div></div></div>
+    </div>
+    <div class="card">
+      <h2>民眾資料 <span class="sub">輸入姓名或身分證前 4 碼即可帶出歷史紀錄</span></h2>
+      <div class="grid g3">
+        <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名搜尋…" autocomplete="off" oninput="acInput(this.value)" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
+        <div class="fld"><label>身分證字號</label><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint()"><div class="note" id="pid-hint"></div></div>
+        <div class="fld"><label>預約方式</label><div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div></div>
+      </div>
+      <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn sec" onclick="resetForm()">清除</button><button class="btn" id="b-submit" onclick="submitBooking()">建立預約</button></div>
+    </div>
+  </section>
+
+  <!-- ---------- 每日名單 ---------- -->
+  <section id="v-list" class="hidden">
+    <div class="card">
+      <h2>每日預約名單 <span class="sub" id="list-sum"></span></h2>
+      <div class="row" style="margin-bottom:12px">
+        <select id="li-clinic" onchange="loadList()"></select>
+        <button class="btn sec sm" onclick="shiftDate(-1)">◀</button>
+        <input type="date" id="li-date" onchange="loadList()" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <button class="btn sec sm" onclick="shiftDate(1)">▶</button>
+        <button class="btn sec sm" onclick="setToday()">今天</button>
+        <label style="font-size:13px;color:var(--mut);margin-left:6px"><input type="checkbox" id="li-hidecancel" onchange="renderList()"> 隱藏取消</label>
+        <button class="btn ghost sm" style="margin-left:auto" onclick="loadList()">重新整理</button>
+      </div>
+      <div class="tw"><table><thead><tr><th>時段</th><th>序</th><th>醫師</th><th>姓名</th><th>身分證</th><th>方式</th><th>LINE</th><th>狀態</th><th>建立</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
+      <div class="empty hidden" id="li-empty">此日無預約</div>
+    </div>
+  </section>
+
+  <!-- ---------- 統計 ---------- -->
+  <section id="v-stats" class="hidden">
+    <div class="card">
+      <h2>報到統計與未回診名單</h2>
+      <div class="row" style="margin-bottom:12px">
+        <select id="st-clinic"></select>
+        <input type="date" id="st-from" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px"> ～
+        <input type="date" id="st-to" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <button class="btn sec sm" onclick="stPreset(0)">今天</button><button class="btn sec sm" onclick="stPreset(7)">近 7 天</button><button class="btn sec sm" onclick="stPreset(30)">近 30 天</button>
+        <button class="btn sm" onclick="loadStats()">查詢</button>
+      </div>
+      <div class="kpis" id="st-kpi"></div>
+      <div class="grid g2">
+        <div><h3 style="font-size:14px;margin:6px 0">各院區</h3><div class="tw"><table><thead><tr><th>院區</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-clinic-body"></tbody></table></div></div>
+        <div><h3 style="font-size:14px;margin:6px 0">各醫師</h3><div class="tw"><table><thead><tr><th>院區 / 醫師</th><th>預約</th><th>報到</th><th>報到率</th><th>取消</th><th>未回診</th></tr></thead><tbody id="st-doc-body"></tbody></table></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>未回診名單 <span class="sub" id="ns-sum"></span></h2>
+      <div class="tw"><table><thead><tr><th>日期</th><th>時段</th><th>院區</th><th>醫師</th><th>姓名</th><th>身分證</th><th>方式</th><th>LINE 回覆</th></tr></thead><tbody id="ns-body"></tbody></table></div>
+      <div class="empty hidden" id="ns-empty">此區間沒有未回診紀錄</div>
+    </div>
+  </section>
+
+  <!-- ---------- 醫師名單 ---------- -->
+  <section id="v-doc" class="hidden">
+    <div class="card">
+      <h2>醫師名單 <span class="sub">每日 05:30 自動同步官網各院區醫療團隊；可手動新增或停用</span></h2>
+      <div class="row" style="margin-bottom:12px">
+        <select id="dc-clinic" onchange="loadDoctors()"></select>
+        <input id="dc-new" placeholder="手動新增醫師姓名" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+        <button class="btn sm" onclick="addDoctor()">新增</button>
+        <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">立即同步官網</button>
+      </div>
+      <div class="tw"><table><thead><tr><th>院區</th><th>醫師</th><th>來源</th><th>狀態</th><th>最後同步</th><th>操作</th></tr></thead><tbody id="dc-body"></tbody></table></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<div id="modal" class="ov hidden" onclick="if(event.target===this)closeModal()"><div class="md" id="modal-body"></div></div>
+<div id="toast"></div>
+
+<script>
+// ==================== 設定 ====================
+var API = 'PASTE_YOUR_APPS_SCRIPT_WEBAPP_URL_HERE/exec';
+var LS_KEY = 'eliteBookingUser';
+
+var S = { token:'', user:null, clinics:[], doctors:[], settings:{}, today:'', type:'電話預約', slot:'', list:[], acTimer:null, docList:[] };
+
+// ==================== API ====================
+function get(params, cb, btn) {
+  if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; }
+  params.token = S.token;
+  var q = Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }).join('&');
+  fetch(API + '?' + q).then(function(r){ return r.json(); }).then(function(d) {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
+    if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
+    cb(d);
+  }).catch(function(e) {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
+    toast('連線失敗：' + e.message, 'err');
+  });
+}
+
+// ==================== 登入 ====================
+function doLogin() {
+  var id = document.getElementById('l-id').value.trim(), pw = document.getElementById('l-pw').value;
+  var err = document.getElementById('l-err'); err.textContent = '';
+  if (!id || !pw) { err.textContent = '請輸入員工編號與密碼'; return; }
+  get({ action:'login', empId:id, pwd:pw }, function(d) {
+    if (d.error) { err.textContent = d.error; return; }
+    S.token = d.token; S.user = d.user;
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ token:d.token, user:d.user, at:Date.now() })); } catch (e) {}
+    enterApp();
+  }, document.getElementById('l-btn'));
+}
+document.getElementById('l-pw').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
+
+function logout() {
+  try { localStorage.removeItem(LS_KEY); } catch (e) {}
+  S.token = ''; S.user = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+}
+
+function enterApp() {
+  get({ action:'getInit' }, function(d) {
+    if (d.error) { toast(d.error, 'err'); logout(); return; }
+    S.user = d.user; S.clinics = d.clinics; S.doctors = d.doctors; S.settings = d.settings; S.today = d.today;
+    document.getElementById('u-name').textContent = S.user.name;
+    document.getElementById('u-title').textContent = S.user.title || '';
+    document.getElementById('u-clinic').textContent = S.user.isAdmin ? '全院區' : (S.user.clinicName + '院區');
+    document.getElementById('h-sync').textContent = '醫師名單同步：' + (S.settings.doctorSync || '尚未') + '　LINE 綁定同步：' + (S.settings.bindSync || '尚未');
+    if (!S.user.isAdmin && !S.user.clinicCode) toast('您的所屬院區「' + S.user.clinic + '」不在院區代碼表中，請通知管理者', 'err');
+    fillClinicSelects();
+    document.getElementById('b-date').value = S.today; document.getElementById('b-date').min = S.today;
+    document.getElementById('li-date').value = S.today;
+    stPreset(7);
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    onClinicChange();
+  });
+}
+
+function fillClinicSelects() {
+  var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
+  var all = S.user.isAdmin ? '<option value="">全部院區</option>' : '';
+  document.getElementById('b-clinic').innerHTML = opts;
+  document.getElementById('li-clinic').innerHTML = all + opts;
+  document.getElementById('st-clinic').innerHTML = all + opts;
+  document.getElementById('dc-clinic').innerHTML = all + opts;
+  ['b-clinic','li-clinic','st-clinic','dc-clinic'].forEach(function(id){ var el = document.getElementById(id); el.disabled = !S.user.isAdmin && S.clinics.length <= 1; });
+}
+
+// 自動登入
+(function autoLogin() {
+  try {
+    var raw = localStorage.getItem(LS_KEY); if (!raw) return;
+    var o = JSON.parse(raw); if (!o.token || Date.now() - o.at > 6 * 3600 * 1000) { localStorage.removeItem(LS_KEY); return; }
+    S.token = o.token; S.user = o.user; enterApp();
+  } catch (e) {}
+})();
+
+// ==================== 視圖 ====================
+function showView(v) {
+  ['book','list','stats','doc'].forEach(function(k){ document.getElementById('v-' + k).classList.toggle('hidden', k !== v); });
+  document.querySelectorAll('nav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v === v); });
+  if (v === 'list') loadList(); if (v === 'stats') loadStats(); if (v === 'doc') loadDoctors();
+}
+
+// ==================== 新增預約 ====================
+function onClinicChange() {
+  var code = document.getElementById('b-clinic').value;
+  var docs = S.doctors.filter(function(d){ return d.clinicCode === code; });
+  document.getElementById('b-doctor').innerHTML = '<option value="">請選擇</option>' + docs.map(function(d){ return '<option>' + d.name + '</option>'; }).join('');
+  loadSlots();
+}
+function loadSlots() {
+  var code = document.getElementById('b-clinic').value, date = document.getElementById('b-date').value;
+  S.slot = '';
+  if (!code || !date) return;
+  document.getElementById('slots').innerHTML = '<div class="empty">載入中…</div>';
+  get({ action:'getSlots', clinicCode:code, date:date }, function(d) {
+    if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + d.error + '</div>'; return; }
+    document.getElementById('slot-cap').textContent = '（每時段上限 ' + d.cap + ' 人）';
+    var html = d.slots.map(function(s) {
+      var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.8;
+      return '<div class="slot' + (full ? ' full' : '') + (warn ? ' warn' : '') + '" data-k="' + s.key + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.label + '</b><small>' + (full ? '已滿' : '已約 ' + s.count + ' 人') + '</small></div>';
+    }).join('');
+    document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
+  });
+}
+function pickSlot(el, full) {
+  if (full) { toast('此時段已滿', 'err'); return; }
+  document.querySelectorAll('.slot').forEach(function(s){ s.classList.remove('on'); });
+  el.classList.add('on'); S.slot = el.dataset.k;
+}
+function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button').forEach(function(b){ b.classList.toggle('on', b === btn); }); }
+
+// 姓名記憶
+function acInput(v) {
+  clearTimeout(S.acTimer);
+  if (v.trim().length < 1) { acHide(); return; }
+  S.acTimer = setTimeout(function() {
+    get({ action:'searchPatient', q:v.trim() }, function(d) {
+      if (d.error || !d.list) return;
+      S.acList = d.list;
+      var box = document.getElementById('acl');
+      if (!d.list.length) { acHide(); return; }
+      box.innerHTML = d.list.map(function(p, i) {
+        return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b> <span style="color:var(--mut)">' + p.pidMasked + '</span></div><small>' + (p.bound ? '<span class="tag ok">LINE</span> ' : '') + (p.lastDate ? p.lastDate + ' ' + esc(p.lastClinic) + ' ' + esc(p.lastDoctor) : '') + '</small></div>';
+      }).join('');
+      box.classList.remove('hidden');
+    });
+  }, 250);
+}
+function acPick(i) {
+  var p = S.acList[i]; if (!p) return;
+  document.getElementById('b-name').value = p.name;
+  document.getElementById('b-pid').value = p.pid;
+  pidHint(p.bound); acHide();
+}
+function acHide() { document.getElementById('acl').classList.add('hidden'); }
+function pidHint(bound) {
+  var v = document.getElementById('b-pid').value, h = document.getElementById('pid-hint');
+  if (v.length === 10 && !/^[A-Z][A-D0-9]\d{8}$/.test(v)) { h.innerHTML = '<span style="color:var(--red)">格式不正確</span>'; return; }
+  h.innerHTML = bound === true ? '<span class="tag ok">已綁定 LINE，前一天會自動提醒</span>' : (bound === false ? '<span class="tag no">尚未綁定 LINE</span>' : '');
+}
+
+function submitBooking() {
+  var p = { action:'createBooking', clinicCode:document.getElementById('b-clinic').value, date:document.getElementById('b-date').value,
+            slot:S.slot, doctor:document.getElementById('b-doctor').value, name:document.getElementById('b-name').value.trim(),
+            pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim() };
+  if (!p.clinicCode) return toast('請選擇院區', 'err');
+  if (!p.date) return toast('請選擇日期', 'err');
+  if (!p.slot) return toast('請選擇時段', 'err');
+  if (!p.doctor) return toast('請選擇看診醫師', 'err');
+  if (!p.name) return toast('請輸入姓名', 'err');
+  if (!/^[A-Z][A-D0-9]\d{8}$/.test(p.pid)) return toast('身分證字號格式不正確', 'err');
+  get(p, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    var clinic = S.clinics.filter(function(c){ return c.code === p.clinicCode; })[0];
+    var line = d.bound
+      ? '<div class="tag ok" style="font-size:13px;padding:6px 10px">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— 看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒</div>'
+      : '<div class="tag no" style="font-size:13px;padding:6px 10px">尚未綁定 LINE，無法推播提醒</div>' +
+        (d.lineAddUrl ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(d.lineAddUrl) + '" alt="LINE QR"><div class="note">請民眾掃描加入金鶯診所 LINE 並完成綁定（填寫姓名＋身分證）</div></div>' : '<div class="note" style="margin-top:6px">請引導民眾加入金鶯診所 LINE 官方帳號並完成綁定。</div>');
+    openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + esc(clinic ? clinic.name : '') + '院區</b><span>日期時段</span><b>' + p.date + '　' + p.slot + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
+      '<div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" onclick="closeModal()">完成</button></div>');
+    resetForm(); loadSlots();
+  }, document.getElementById('b-submit'));
+}
+function resetForm() {
+  document.getElementById('b-name').value = ''; document.getElementById('b-pid').value = ''; document.getElementById('b-note').value = '';
+  document.getElementById('pid-hint').innerHTML = ''; S.slot = ''; document.querySelectorAll('.slot').forEach(function(s){ s.classList.remove('on'); });
+}
+
+// ==================== 每日名單 ====================
+function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
+function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
+function loadList() {
+  var code = document.getElementById('li-clinic').value, date = document.getElementById('li-date').value;
+  get({ action:'getBookings', clinicCode:code, date:date }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    S.list = d.list; renderList();
+  });
+}
+function renderList() {
+  var hide = document.getElementById('li-hidecancel').checked;
+  var body = document.getElementById('li-body'); var rows = S.list.filter(function(b){ return !(hide && /取消/.test(b.status)); });
+  var cnt = { all:S.list.length, done:0, cancel:0, pend:0 };
+  S.list.forEach(function(b){ if (b.status === '已報到') cnt.done++; else if (/取消/.test(b.status)) cnt.cancel++; else if (b.status === '待報到') cnt.pend++; });
+  document.getElementById('list-sum').textContent = '共 ' + cnt.all + ' 筆 · 待報到 ' + cnt.pend + ' · 已報到 ' + cnt.done + ' · 取消 ' + cnt.cancel;
+  document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
+  var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin;
+  body.innerHTML = rows.map(function(b, i) {
+    var cls = /取消/.test(b.status) ? 'cancel' : (b.status === '已報到' ? 'done' : (b.status === '未回診' ? 'noshow' : ''));
+    var line = b.lineReply === '確認' ? '<span class="tag ok">確認會來</span>' : (b.lineReply === '取消' ? '<span class="tag red">LINE 取消</span>' : (b.pushed ? '<span class="tag blue">已提醒</span>' : '<span class="tag no">—</span>'));
+    var ops = '';
+    if (b.status === '待報到') ops = '<button class="btn sm" onclick="opCheck(' + i + ',false)">報到</button><button class="btn sm sec" onclick="opCancel(' + i + ')">取消</button>';
+    else if (b.status === '已報到') ops = '<button class="btn sm sec" onclick="opCheck(' + i + ',true)">取消報到</button>';
+    else if (/取消/.test(b.status)) ops = '<button class="btn sm sec" onclick="opRestore(' + i + ')">復原</button>';
+    else if (b.status === '未回診') ops = '<button class="btn sm sec" onclick="opCheck(' + i + ',false)">補報到</button>';
+    return '<tr class="' + cls + '"><td><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td>' + (showClinic ? '<small style="color:var(--mut)">' + esc(b.clinicName) + '</small><br>' : '') + esc(b.doctor) + '</td><td class="name"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="tag amb">回診</span>' : '<span class="tag blue">電話</span>') + '</td><td>' + line + '</td><td><span class="st ' + b.status + '">' + b.status + '</span>' + (b.checkedAt ? '<br><small style="color:var(--mut)">' + b.checkedAt.slice(11) + ' ' + esc(b.checkedBy) + '</small>' : '') + (b.cancelAt ? '<br><small>' + b.cancelAt.slice(5) + ' ' + esc(b.cancelBy) + '</small>' : '') + '</td><td><small style="color:var(--mut)">' + esc(b.createdBy) + '<br>' + b.created.slice(5) + '</small></td><td><div class="ops">' + ops + '</div></td></tr>';
+  }).join('');
+  S.view = rows; // 操作按鈕的 index 對應過濾後的陣列
+}
+function opCheck(i, undo) { var b = S.view[i]; if (!b) return; get({ action:'checkIn', id:b.id, undo:undo ? '1' : '0' }, function(d){ if (d.error) return toast(d.error, 'err'); toast(undo ? '已取消報到' : b.name + ' 報到完成', 'ok'); loadList(); }); }
+function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); loadList(); }); }
+function opRestore(i) { var b = S.view[i]; if (!b) return; get({ action:'restoreBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已復原為待報到', 'ok'); loadList(); }); }
+
+// ==================== 統計 ====================
+function stPreset(n) {
+  var t = new Date(S.today + 'T00:00:00'); var f = new Date(t); f.setDate(f.getDate() - n + (n ? 1 : 0));
+  document.getElementById('st-from').value = ymd(f); document.getElementById('st-to').value = S.today;
+}
+function loadStats() {
+  get({ action:'getStats', clinicCode:document.getElementById('st-clinic').value, from:document.getElementById('st-from').value, to:document.getElementById('st-to').value }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    var s = d.summary; var rate = s.total ? Math.round(s.checked / (s.total - s.cancelLine - s.cancelPhone || 1) * 100) : 0;
+    document.getElementById('st-kpi').innerHTML =
+      kpi('預約總數', s.total) + kpi('電話預約', s.phone) + kpi('回診預約', s.revisit) + kpi('已報到', s.checked, true) + kpi('報到率', rate + '%', true) +
+      kpi('待報到', s.pending) + kpi('取消（LINE）', s.cancelLine) + kpi('取消（電話）', s.cancelPhone) + kpi('未回診', s.noShow) + kpi('LINE 已提醒', s.pushed) + kpi('LINE 確認會來', s.confirmed);
+    document.getElementById('st-clinic-body').innerHTML = tableRows(d.byClinic);
+    document.getElementById('st-doc-body').innerHTML = tableRows(d.byDoctor);
+    document.getElementById('ns-sum').textContent = d.from + ' ～ ' + d.to + '　共 ' + d.noShowList.length + ' 人';
+    document.getElementById('ns-empty').classList.toggle('hidden', d.noShowList.length > 0);
+    document.getElementById('ns-body').innerHTML = d.noShowList.map(function(b){ return '<tr><td>' + b.date + '</td><td>' + b.slot + '</td><td>' + esc(b.clinicName) + '</td><td>' + esc(b.doctor) + '</td><td><b>' + esc(b.name) + '</b></td><td>' + b.pidMasked + '</td><td>' + b.type + '</td><td>' + (b.lineReply || (b.pushed ? '已提醒未回覆' : '未綁定')) + '</td></tr>'; }).join('');
+  });
+}
+function kpi(t, v, hl) { return '<div class="kpi' + (hl ? ' hl' : '') + '"><small>' + t + '</small><b>' + v + '</b></div>'; }
+function tableRows(obj) {
+  var keys = Object.keys(obj).sort(function(a,b){ return obj[b].total - obj[a].total; });
+  if (!keys.length) return '<tr><td colspan="6" class="empty">無資料</td></tr>';
+  return keys.map(function(k){ var r = obj[k]; var base = r.total - r.cancel; var rate = base ? Math.round(r.checked / base * 100) : 0;
+    return '<tr><td>' + esc(k) + '</td><td>' + r.total + '</td><td>' + r.checked + '</td><td><b>' + rate + '%</b></td><td>' + r.cancel + '</td><td>' + r.noShow + '</td></tr>'; }).join('');
+}
+
+// ==================== 醫師名單 ====================
+function loadDoctors() {
+  get({ action:'getDoctors', clinicCode:document.getElementById('dc-clinic').value }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    S.docList = d.doctors;
+    document.getElementById('dc-body').innerHTML = d.doctors.map(function(x, i) {
+      return '<tr' + (x.active ? '' : ' class="done"') + '><td>' + esc(x.clinicName) + '</td><td><b>' + esc(x.name) + '</b></td><td>' + (x.source === '官網' ? '<span class="tag blue">官網</span>' : '<span class="tag amb">手動</span>') + '</td><td>' + (x.active ? '<span class="tag ok">啟用</span>' : '<span class="tag no">停用</span>') + '</td><td><small>' + x.synced + '</small></td><td><button class="btn sm sec" onclick="toggleDoctor(' + i + ')">' + (x.active ? '停用' : '啟用') + '</button></td></tr>';
+    }).join('') || '<tr><td colspan="6" class="empty">尚無醫師，請按「立即同步官網」</td></tr>';
+  });
+}
+function toggleDoctor(i) { var x = S.docList[i]; if (!x) return; get({ action:'setDoctor', mode:'toggle', row:x.row, clinicCode:x.clinicCode }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已更新', 'ok'); loadDoctors(); refreshInit(); }); }
+function addDoctor() {
+  var name = document.getElementById('dc-new').value.trim(); var code = document.getElementById('dc-clinic').value || S.user.clinicCode;
+  if (!code) return toast('請先選擇院區', 'err'); if (!name) return toast('請輸入醫師姓名', 'err');
+  get({ action:'setDoctor', mode:'add', name:name, clinicCode:code }, function(d){ if (d.error) return toast(d.error, 'err'); document.getElementById('dc-new').value = ''; toast('已新增', 'ok'); loadDoctors(); refreshInit(); });
+}
+function syncDoctorsNow() {
+  get({ action:'syncDoctors' }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    toast('同步完成：新增 ' + d.added + '、更新 ' + d.kept + (d.failed.length ? '；失敗 ' + d.failed.length + ' 院區' : ''), d.failed.length ? 'err' : 'ok');
+    loadDoctors(); refreshInit();
+  }, document.getElementById('dc-sync'));
+}
+function refreshInit() { get({ action:'getInit' }, function(d){ if (d.error) return; S.doctors = d.doctors; S.settings = d.settings; document.getElementById('h-sync').textContent = '醫師名單同步：' + (S.settings.doctorSync || '尚未') + '　LINE 綁定同步：' + (S.settings.bindSync || '尚未'); onClinicChange(); }); }
+
+// ==================== 工具 ====================
+function openModal(html) { document.getElementById('modal-body').innerHTML = html; document.getElementById('modal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+var toastTimer;
+function toast(msg, type) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + (type || ''); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className = ''; }, 2600); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+function mask(p) { return p.length === 10 ? p.slice(0,3) + '****' + p.slice(7) : p; }
+function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+</script>
+</body>
+</html>
