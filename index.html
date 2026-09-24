@@ -153,6 +153,9 @@ table.lt tr.late td{background:#FFF8E8}
 .stx{font-size:15px;line-height:1.4}.stx.red{color:var(--red)}
 .obtn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 16px;font-size:15px;color:var(--tx)}
 .obtn:hover{background:var(--teal-l)}.obtn.red{border-color:var(--red);color:var(--red)}.obtn.red:hover{background:var(--red-l)}
+.obtn.del{padding:9px 10px;color:var(--mut);border-color:var(--line2)}.obtn.del:hover{background:var(--red-l);color:var(--red);border-color:var(--red)}
+.dbox{background:var(--red-l);border:1px solid #F2C9C4;border-radius:12px;padding:14px 16px;margin:10px 0;font-size:14px;line-height:1.7;color:#8E2A20}
+.dck{display:flex;align-items:center;gap:10px;font-size:15px;margin-top:10px;cursor:pointer}.dck input{width:20px;height:20px}
 .lfoot{display:flex;gap:26px;align-items:center;padding:16px 22px;font-size:14px;color:var(--mut);border-top:1px solid var(--line2)}
 .lfoot .r{margin-left:auto}.sw{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-2px;border:1px solid var(--line)}
 .sw.red{background:#FBECEA;border-color:#F2C9C4}.sw.amb{background:#FFF8E8;border-color:#F1DDA8}
@@ -673,13 +676,13 @@ function renderList() {
     var cls = cancelled ? 'cancel' : (isLate ? 'late' : '');
     var ck = cancelled ? '<span class="ck dis"></span>' : '<span class="ck' + (b.status === '已報到' ? ' on' : '') + '" onclick="opCheck(' + i + ',' + (b.status === '已報到') + ')">' + (b.status === '已報到' ? '✓' : '') + '</span>';
     var line = b.lineReply === '確認' ? '<span class="pill ok">已確認</span>' : (b.status === '取消-LINE' || b.lineReply === '取消') ? '<span class="pill red">LINE 取消</span>' : b.status === '取消-電話' ? '<span class="pill red">電話取消</span>' : b.pushed ? '<span class="pill amb">未回覆</span>' : b.bound ? '<span class="pill grey">待提醒</span>' : '<span class="pill grey">未綁定</span>';
-    var st, ops, det = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>';
+    var st, ops, det = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>', del = '<button class="obtn del" onclick="openDelete(' + i + ')" title="整筆刪除（不可復原）">🗑</button>';
     if (b.status === '已報到') { st = '<span class="pill done">已報到 ' + (b.checkedAt || '').slice(11) + '</span>'; ops = det; }
     else if (cancelled) { st = '<div class="stx red">ⓘ 已取消 ' + (b.cancelAt || '').slice(5) + ' · ' + (b.status === '取消-LINE' ? '名額已釋出' : '櫃檯 ' + esc(b.cancelBy) + ' 登記') + '</div>'; ops = '<button class="obtn red" onclick="fillFrom(' + i + ')">候補遞補</button> <button class="obtn" onclick="opRestore(' + i + ')">復原</button>'; }
     else if (b.status === '未回診') { st = '<span class="pill amb">未回診</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ' + det; }
     else if (isLate) { st = '<span class="pill amb">逾時未到' + (late < 9999 ? '（已過 ' + late + ' 分）' : '') + '</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
     else { st = '<span class="pill grey">待報到</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
-    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
@@ -752,6 +755,22 @@ function saveEdit() {
     if (d.error) { var msg = document.getElementById('e-msg'); msg.style.display = 'block'; msg.style.color = 'var(--red)'; msg.innerHTML = '⚠️ ' + esc(d.error); if (d.full) editLoadSlots(); return; }
     toast('已修改' + (d.moved ? '，LINE 提醒將依新時段重新發送' : ''), 'ok'); closeModal(); loadList();
   }, document.getElementById('e-save'));
+}
+// 整筆刪除：二次確認 + 勾選同意，才呼叫後端
+function openDelete(i) {
+  var b = S.view[i]; if (!b) return;
+  openModal('<h3 style="color:var(--red)">🗑 刪除預約資料</h3>' +
+    '<div class="kv"><span>民眾</span><b>' + esc(b.name) + '　' + b.pidMasked + '</b><span>院區</span><b>' + esc(b.clinicName) + '院區</b><span>日期時段</span><b>' + b.date + '　' + b.slot + '</b><span>醫師</span><b>' + esc(b.doctor) + '</b><span>目前狀態</span><b>' + b.status + '</b></div>' +
+    '<div class="dbox"><b>此操作會將這筆預約整筆從名單移除，且無法在系統內復原。</b><br>若只是民眾不來，請用「取消」保留紀錄以便統計與遞補；「刪除」僅用於重複建立、輸入錯誤等需要抹除的情況。刪除會備份到後台「已刪除預約」分頁並記錄操作人員。</div>' +
+    '<label class="dck"><input type="checkbox" id="del-ok" onchange="document.getElementById(\'del-btn\').disabled=!this.checked"> 我確認要整筆刪除 ' + esc(b.name) + ' 的這筆預約</label>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn sec" onclick="closeModal()">返回</button><button class="btn red" id="del-btn" disabled onclick="doDelete(' + i + ')">確定刪除</button></div>');
+}
+function doDelete(i) {
+  var b = S.view[i]; if (!b) return;
+  get({ action:'deleteBooking', id:b.id }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    toast('已刪除 ' + b.name + ' ' + b.date + ' ' + b.slot + ' 的預約', 'ok'); closeModal(); loadList();
+  }, document.getElementById('del-btn'));
 }
 // 候補遞補：帶著院區/日期/時段/醫師跳到新增預約
 function fillFrom(i) {
