@@ -292,7 +292,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
         <div class="fld ac"><label>姓名（輸入即比對歷史預約與 LINE 綁定，自動帶出身分證）</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput(this.value);renderSummary()" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
         <div class="fld"><label>身分證字號（LINE 綁定比對鍵；可由姓名自動帶入）</label>
-          <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();renderSummary()" onkeydown="if(event.key==='Enter')pidLookup()"><button class="btn" onclick="pidLookup()">帶入</button></div>
+          <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();pidAuto();renderSummary()" onkeydown="if(event.key==='Enter')pidLookup()"><button class="btn" onclick="pidLookup()">帶入</button></div>
           <div class="hint" id="pid-hint"></div></div>
         <div class="fld"><label>電話號碼（選填，僅供櫃檯聯絡）</label><input id="b-phone" type="tel" inputmode="numeric" placeholder="0912345678" maxlength="12" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
         <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
@@ -604,6 +604,13 @@ function pidLookup() {
     document.getElementById('b-name').value = hit.name; document.getElementById('b-pid').value = hit.pid; S.bound = hit.bound; pidHint(); renderSummary();
     toast('已帶入 ' + hit.name, 'ok');
   });
+}
+function pidAuto() { // 身分證輸入完整 10 碼 → 從目錄帶姓名／電話／綁定狀態
+  var pid = document.getElementById('b-pid').value; if (pid.length !== 10 || !S.dir) return;
+  var hit = dirSearch(pid).filter(function(x){ return x.pid === pid; })[0]; if (!hit) return;
+  if (!document.getElementById('b-name').value.trim()) document.getElementById('b-name').value = hit.name;
+  if (hit.phone && !document.getElementById('b-phone').value) document.getElementById('b-phone').value = hit.phone;
+  S.bound = hit.bound; pidHint(); renderSummary();
 }
 function pidHint() {
   var v = document.getElementById('b-pid').value, h = document.getElementById('pid-hint');
