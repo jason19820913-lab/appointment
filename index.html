@@ -91,7 +91,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .sl-title{font-size:20px;font-weight:700;margin:0 0 6px}
 .sl-legend{display:flex;gap:16px;font-size:13px;color:var(--mut);margin-top:2px}
 .sl-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--line);background:#fff}
-.sl-legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.sl-legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}
+.sl-legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.sl-legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}.sl-legend i.past{background:repeating-linear-gradient(135deg,#F4F6F5 0 3px,#DDE3E0 3px 6px);border-color:var(--line2)}
 .grp{margin-top:22px}
 .grp h4{font-size:16px;font-weight:700;margin:0 0 12px;padding-left:12px;border-left:4px solid var(--teal);line-height:1.2}
 .slots{display:grid;grid-template-columns:repeat(var(--c,3),1fr);gap:12px}
@@ -102,6 +102,8 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .slot.warn{background:var(--amb-l);border-color:var(--amb-l)}.slot.warn small{color:var(--amb)}
 .slot.on,.slot.warn.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal);padding:15px 9px 13px}.slot.on small,.slot.warn.on small{color:var(--teal)}
 .slot.full{background:var(--grey-l);border-color:var(--grey-l);color:var(--mut);cursor:not-allowed}
+.slot.past{background:repeating-linear-gradient(135deg,#F4F6F5 0 8px,#E9EDEB 8px 16px);border-color:var(--line2);color:#A5B0AB;cursor:not-allowed}.slot.past small{color:#A5B0AB}.slot.past:hover{border-color:var(--line2);background:repeating-linear-gradient(135deg,#F4F6F5 0 8px,#E9EDEB 8px 16px)}
+.es.past{background:repeating-linear-gradient(135deg,#F4F6F5 0 6px,#E9EDEB 6px 12px);color:#A5B0AB;cursor:not-allowed;border-color:var(--line2)}
 .slot.ph{border:1px dashed var(--line);background:transparent;color:#B8C2BD;cursor:default}.slot.ph:hover{border-color:var(--line);background:transparent}
 .foot-note{margin-top:28px}
 
@@ -274,7 +276,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="card" style="min-height:560px;display:flex;flex-direction:column">
         <div class="sl-head">
           <div><h3 class="step" style="margin-bottom:8px">STEP 3 <span>· 選擇時段（每小時一格）</span></h3><div class="sl-title" id="sl-title">請先選擇院區與日期</div></div>
-          <div class="sl-legend"><span><i></i>可預約</span><span><i class="amb"></i>即將額滿</span><span><i class="grey"></i>額滿 / 休診</span></div>
+          <div class="sl-legend"><span><i></i>可預約</span><span><i class="amb"></i>即將額滿</span><span><i class="grey"></i>額滿</span><span><i class="past"></i>已過時段</span></div>
         </div>
         <div id="slots" style="flex:1"><div class="empty">載入中…</div></div>
         <div class="note plain foot-note">🕓 每小時上限人數可於後台「院區代碼」分頁依院區設定；休診時段不顯示。</div>
@@ -500,6 +502,8 @@ function pickDate(k) { S.date = k; var d = new Date(k + 'T00:00:00'); S.calY = d
 function dateTxt(k) { if (!k) return ''; var d = new Date(k + 'T00:00:00'); return k.replace(/-/g, '/') + '（' + WD[d.getDay()] + '）'; }
 
 // ==================== STEP 3 時段 ====================
+// 今天且時段結束時間已過 → 已過時段（不可預約）；時段進行中仍可預約（現場補掛）
+function slotPassed(date, endMin) { if (date < S.today) return true; if (date > S.today) return false; var n = new Date(); return n.getHours() * 60 + n.getMinutes() >= endMin; }
 function loadSlots() {
   var code = document.getElementById('b-clinic').value;
   S.slot = ''; S.slotLabel = ''; renderSummary();
@@ -517,17 +521,18 @@ function loadSlots() {
       var n = list.length, cols = n === 4 ? 2 : Math.min(3, Math.ceil(n / Math.ceil(n / 3))); // 一列最多 3 格；4 格排成 2×2
       html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
-        var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75;
-        html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
+        var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
+        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? '已過時段' : (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap)) + '</small></div>';
       });
       html += '</div></div>';
     });
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
-    if (S.pendingSlot) { var el = document.querySelector('.slot[data-k="' + S.pendingSlot + '"]'); if (el && !el.classList.contains('full')) pickSlot(el, false); S.pendingSlot = ''; }
+    if (S.pendingSlot) { var el = document.querySelector('.slot[data-k="' + S.pendingSlot + '"]'); if (el && !el.classList.contains('full') && !el.classList.contains('past')) pickSlot(el, false, false); S.pendingSlot = ''; }
     if (S.pendingDoctor) { var ds = document.getElementById('b-doctor'); for (var i = 0; i < ds.options.length; i++) if (ds.options[i].value === S.pendingDoctor) ds.value = S.pendingDoctor; S.pendingDoctor = ''; renderSummary(); }
   });
 }
-function pickSlot(el, full) {
+function pickSlot(el, full, past) {
+  if (past) { toast('此時段已經過了，無法預約', 'err'); return; }
   if (full) { toast('此時段已額滿', 'err'); return; }
   document.querySelectorAll('.slot.on').forEach(function(s){ s.classList.remove('on'); s.querySelector('small').textContent = s.dataset.c; });
   el.classList.add('on'); el.querySelector('small').textContent = el.dataset.c + ' · 已選取';
@@ -737,8 +742,8 @@ function editLoadSlots() {
     var same = date === b.date;
     box.innerHTML = d.slots.map(function(s) {
       var cnt = s.count - (same && s.key === b.slot ? 1 : 0); // 自己原本佔的名額不算
-      var full = cnt >= s.cap, cur = same && s.key === b.slot, on = S.edit.slot === s.key && same;
-      return '<div class="es' + (full && !cur ? ' full' : '') + (on ? ' on' : '') + '" onclick="editPick(\'' + s.key + '\',' + (full && !cur) + ',' + cnt + ',' + s.cap + ')"><b>' + s.key + '</b><small>' + (cur ? '目前' : (full ? '已額滿' : cnt + '/' + s.cap)) + '</small></div>';
+      var full = cnt >= s.cap, cur = same && s.key === b.slot, on = S.edit.slot === s.key && same, past = slotPassed(date, (s.min != null ? s.min : slotMin(s.key)) + 60) && !cur;
+      return '<div class="es' + (past ? ' past' : (full && !cur ? ' full' : '')) + (on ? ' on' : '') + '" onclick="' + (past ? "toast('此時段已經過了','err')" : 'editPick(\'' + s.key + '\',' + (full && !cur) + ',' + cnt + ',' + s.cap + ')') + '"><b>' + s.key + '</b><small>' + (cur ? '目前' : past ? '已過' : (full ? '已額滿' : cnt + '/' + s.cap)) + '</small></div>';
     }).join('') || '<div class="empty">此日無可預約時段</div>';
     if (!same) S.edit.slot = '';
   });
