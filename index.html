@@ -217,13 +217,20 @@ function get(params, cb, btn) {
   if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; }
   params.token = S.token;
   var q = Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }).join('&');
-  fetch(API + '?' + q).then(function(r){ return r.json(); }).then(function(d) {
+  var ctrl = ('AbortController' in window) ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 40000);
+  fetch(API + '?' + q, ctrl ? { signal: ctrl.signal } : {}).then(function(r){ return r.text(); }).then(function(t) {
+    clearTimeout(timer);
+    var d;
+    try { d = JSON.parse(t); }
+    catch (e) { throw new Error(/無法開啟這個檔案|Sorry, unable/.test(t) ? '後端尚未完成授權：請在 Apps Script 編輯器執行一次 setupSheets 完成授權，再「新版本」重新部署' : '後端回傳的不是 JSON（可能是登入頁或錯誤頁），請檢查部署存取權是否為「所有人」'); }
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
     if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
     cb(d);
   }).catch(function(e) {
+    clearTimeout(timer);
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
-    toast('連線失敗：' + e.message, 'err');
+    toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
   });
 }
 
