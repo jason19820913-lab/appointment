@@ -95,9 +95,12 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .grp{margin-top:22px}
 .grp h4{font-size:16px;font-weight:700;margin:0 0 12px;padding-left:12px;border-left:4px solid var(--teal);line-height:1.2}
 .slots{display:grid;grid-template-columns:repeat(var(--c,3),1fr);gap:12px}
-.slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
 .slot b{display:block;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .slot small{display:block;color:var(--mut);font-size:13px;white-space:nowrap}
+.slot .who{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:12px;line-height:1.5;color:#3E5A52;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.on .who{color:var(--teal);border-top-color:var(--teal-b)}.slot.past .who{color:#98A5A0}.slot.full .who{color:var(--mut)}
+.slot.has{justify-content:flex-start}
 .slot:hover{border-color:var(--teal);background:#F7FBF9}
 .slot.warn{background:var(--amb-l);border-color:var(--amb-l)}.slot.warn small{color:var(--amb)}
 .slot.on,.slot.warn.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal);padding:15px 9px 13px}.slot.on small,.slot.warn.on small{color:var(--teal)}
@@ -211,7 +214,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   .note{padding:9px 12px;font-size:12px}.foot-note,#doc-note{display:none}
   .cal-h{margin-bottom:8px}.cal-h b{font-size:16px}.cal-h button{width:36px;height:36px;font-size:14px}.cal{gap:2px}.cal .wd{font-size:12px;padding:4px 0}.cal .d{width:38px;height:38px;font-size:15px;margin:1px auto}.legend{font-size:12px;margin-top:8px}
   .sl-title{font-size:17px;margin-bottom:2px}.sl-legend{font-size:12px;gap:10px}.grp{margin-top:12px}.grp h4{font-size:14px;margin-bottom:8px}.slots{gap:8px}
-  .slot{padding:10px 6px 9px;gap:4px;min-height:0}.slot b{font-size:16px}.slot small{font-size:12px}.slot.on,.slot.warn.on{padding:9px 5px 8px}
+  .slot{padding:10px 6px 9px;gap:4px;min-height:0}.slot b{font-size:16px}.slot small{font-size:12px}.slot .who{font-size:11px;margin-top:4px;padding-top:4px}.slot.on,.slot.warn.on{padding:9px 5px 8px}
   .seg{gap:8px;margin-bottom:12px}.seg button{padding:11px;font-size:15px}.pid-row .btn{height:44px;padding:0 14px}.hint{min-height:14px;font-size:12px;margin-top:4px}
   .sum{margin-top:12px;padding-top:10px}.sum h5{font-size:14px;margin-bottom:6px}.sum .kv{font-size:14px;padding:4px 0}.cta{margin-top:12px}.cta .btn{padding:15px;font-size:17px}
   .aci{padding:10px 12px;font-size:14px}}
@@ -522,7 +525,10 @@ function loadSlots() {
       html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
         var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
-        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? '已過時段' : (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap)) + '</small></div>';
+        var cnt = '已約 ' + s.count + ' / 上限 ' + s.cap;
+        var who = (s.people || []).map(function(x){ return esc(x.n) + ' · ' + esc(shortDoc(x.d)) + (x.st === '已報到' ? ' ✓' : ''); });
+        var whoHtml = who.length ? '<div class="who" title="' + (s.people || []).map(function(x){ return x.n + '（' + x.d + '｜' + x.st + '）'; }).join('\n') + '">' + who.slice(0, 3).join('<br>') + (who.length > 3 ? '<br>… 還有 ' + (who.length - 3) + ' 位' : '') + '</div>' : '';
+        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + (who.length ? ' has' : '') + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="' + cnt + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? cnt + ' · 已過' : (full ? '額滿 ' + s.count + ' / ' + s.cap : cnt)) + '</small>' + whoHtml + '</div>';
       });
       html += '</div></div>';
     });
@@ -531,6 +537,7 @@ function loadSlots() {
     if (S.pendingDoctor) { var ds = document.getElementById('b-doctor'); for (var i = 0; i < ds.options.length; i++) if (ds.options[i].value === S.pendingDoctor) ds.value = S.pendingDoctor; S.pendingDoctor = ''; renderSummary(); }
   });
 }
+function shortDoc(d) { return String(d || '').replace(/^(減重名醫|總院長)/, '').replace(/(醫師|執行長)$/, ''); }
 function pickSlot(el, full, past) {
   if (past) { toast('此時段已經過了，無法預約', 'err'); return; }
   if (full) { toast('此時段已額滿', 'err'); return; }
