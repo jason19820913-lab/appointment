@@ -50,12 +50,13 @@ input,select{font-family:inherit;font-size:16px;color:var(--tx)}
 header{background:var(--hd);color:#fff;position:sticky;top:0;z-index:20}
 .hin{max-width:1880px;margin:0 auto;padding:0 28px;height:70px;display:flex;align-items:center;gap:24px}
 .hin .brand .mark{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25)}
-.hin .brand h1{color:#fff;font-size:20px;letter-spacing:.02em}
+.hin .brand h1{color:#fff;font-size:20px;letter-spacing:.02em;white-space:nowrap}
 nav{display:flex;gap:6px;margin-left:16px}
-nav button{background:transparent;border:none;padding:10px 18px;border-radius:10px;font-size:16px;color:rgba(255,255,255,.72)}
+nav button{background:transparent;border:none;padding:10px 18px;border-radius:10px;font-size:16px;color:rgba(255,255,255,.72);white-space:nowrap}
 nav button:hover{color:#fff}nav button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:500}
 .hr{margin-left:auto;display:flex;align-items:center;gap:22px;font-size:15px}
-.clock{color:rgba(255,255,255,.85);letter-spacing:.02em}
+.clock{color:rgba(255,255,255,.85);letter-spacing:.02em;white-space:nowrap}
+@media(max-width:1300px){.hin{gap:14px;padding:0 18px}.hin .brand h1{font-size:17px}nav{margin-left:4px;gap:2px}nav button{padding:8px 11px;font-size:15px}.hr{gap:14px;font-size:14px}.who .txt .role{display:none}}
 .who{display:flex;align-items:center;gap:12px}
 .avatar{width:38px;height:38px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
 .who .txt{white-space:nowrap}.who .sep{opacity:.5;margin:0 6px}
@@ -64,10 +65,17 @@ nav button:hover{color:#fff}nav button.on{background:rgba(255,255,255,.14);color
 /* ---------- 版面 ---------- */
 main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .card{background:var(--card);border-radius:var(--r);padding:26px 24px;box-shadow:0 1px 2px rgba(27,43,38,.04),0 6px 18px rgba(27,43,38,.05)}
-.book{display:grid;grid-template-columns:minmax(320px,430px) minmax(480px,1fr) minmax(360px,490px);gap:28px;align-items:start}
-.col{display:flex;flex-direction:column;gap:22px}
-@media(max-width:1280px){.book{grid-template-columns:minmax(300px,380px) 1fr}.book .col3{grid-column:1/-1}}
-@media(max-width:820px){.book{grid-template-columns:1fr}.hin{padding:0 16px;gap:12px;height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.hin .brand small{display:none}.clock{display:none}nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:8px 10px;font-size:14px}.who .txt .sep,.who .txt .role{display:none}main{padding:16px}}
+.book{display:grid;grid-template-columns:minmax(320px,430px) minmax(480px,1fr) minmax(360px,490px);grid-template-areas:"a b c";gap:28px;align-items:start}
+.col{display:flex;flex-direction:column;gap:22px}.col1{grid-area:a}.col2{grid-area:b}.col3{grid-area:c}
+/* 平板橫向 1000–1499：左欄 STEP1+2，右欄 STEP3 之後接 STEP4 */
+@media(max-width:1499px){.book{grid-template-columns:minmax(300px,380px) 1fr;grid-template-areas:"a b" "a c";gap:22px}.col2 .card{min-height:0!important}}
+/* 平板直向 / 手機：單欄依步驟排列 */
+@media(max-width:999px){.book{grid-template-columns:1fr;grid-template-areas:"a" "b" "c";gap:18px}.card{padding:20px 18px}main{padding:18px 16px}
+  .hin{padding:0 16px;gap:12px;height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.hin .brand small{display:none}.clock{display:none}
+  nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:10px 10px;font-size:15px;flex:1;text-align:center}.who .txt .role{display:none}}
+@media(max-width:600px){.slot b{font-size:17px}.cal .d{width:42px;height:42px;font-size:16px}.seg button{padding:14px;font-size:16px}.ltb .search{width:100%}}
+/* 觸控裝置：放大可點區域 */
+@media(pointer:coarse){.slot{min-height:78px}.ibtn,.datepill,.ltb select,.ltb .search,.ltb .btn.sec{height:50px}.ck{width:32px;height:32px}.obtn{padding:11px 16px}}
 
 /* 月曆 */
 .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -95,8 +103,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .sl-legend i.amb{background:var(--amb-l);border-color:var(--amb-l)}.sl-legend i.grey{background:var(--grey-l);border-color:var(--grey-l)}
 .grp{margin-top:22px}
 .grp h4{font-size:16px;font-weight:700;margin:0 0 12px;padding-left:12px;border-left:4px solid var(--teal);line-height:1.2}
-.slots{display:grid;grid-template-columns:repeat(var(--c,4),1fr);gap:12px}
-@media(max-width:1500px){.slots{grid-template-columns:repeat(var(--c2,3),1fr)}}
+.slots{display:grid;grid-template-columns:repeat(var(--c,3),1fr);gap:12px}
 .slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:center;gap:8px}
 .slot b{display:block;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .slot small{display:block;color:var(--mut);font-size:13px;white-space:nowrap}
@@ -158,8 +165,9 @@ table.lt tr.late td{background:#FFF8E8}
 .lfoot{display:flex;gap:26px;align-items:center;padding:16px 22px;font-size:14px;color:var(--mut);border-top:1px solid var(--line2)}
 .lfoot .r{margin-left:auto}.sw{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-2px;border:1px solid var(--line)}
 .sw.red{background:#FBECEA;border-color:#F2C9C4}.sw.amb{background:#FFF8E8;border-color:#F1DDA8}
+table.lt{min-width:1040px}
 @media(max-width:1280px){.lk{grid-template-columns:repeat(3,1fr)}.ltb .search{width:220px;margin-left:0}}
-@media(max-width:820px){.lk{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.lk{grid-template-columns:1fr 1fr}.lk .k b{font-size:32px}.ltb{gap:8px}}
 @media print{header,.ltb .ibtn,.ltb select,.ltb .search,.ltb .btn,#toast,.lt td:last-child,.lt th:last-child{display:none!important}main{padding:0}.card{box-shadow:none}body{background:#fff}}
 
 .eslots{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
@@ -489,8 +497,8 @@ function loadSlots() {
     groups.forEach(function(g) {
       var list = d.slots.filter(function(s){ return g.f(s.min); }); if (!list.length) return;
       var lo = list[0], hi = list[list.length - 1];
-      var n = list.length, cols = Math.ceil(n / Math.ceil(n / 5)), cols2 = Math.ceil(n / Math.ceil(n / 4)); // 依格數決定欄數，讓每列填滿
-      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + ';--c2:' + cols2 + '">';
+      var n = list.length, cols = n === 4 ? 2 : Math.min(3, Math.ceil(n / Math.ceil(n / 3))); // 一列最多 3 格；4 格排成 2×2
+      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
         var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75;
         html += '<div class="slot' + (full ? ' full' : (warn ? ' warn' : '')) + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="已約 ' + s.count + ' / 上限 ' + s.cap + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (full ? '額滿 ' + s.count + ' / ' + s.cap : '已約 ' + s.count + ' / 上限 ' + s.cap) + '</small></div>';
