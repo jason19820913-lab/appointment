@@ -292,6 +292,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <select id="li-period" onchange="renderList()"><option value="">全日</option><option value="am">上午診</option><option value="pm">下午診</option><option value="ev">晚間診</option></select>
       <input id="li-q" class="search" placeholder="搜尋姓名 / 身分證" oninput="renderList()">
       <button class="btn sec" onclick="window.print()">🖨 列印名單</button>
+      <button class="btn sec" id="li-remind" onclick="sendRemindersNow()" title="立即補發明天所有已綁定且尚未提醒的預約">📨 發送明日提醒</button>
     </div>
     <div class="lk" id="li-kpi"></div>
     <div class="card" style="padding:0;overflow:hidden">
@@ -578,7 +579,7 @@ function submitBooking() {
   get(p, function(d) {
     if (d.error) return toast(d.error, 'err');
     var line = d.bound
-      ? '<div class="tag ok" style="font-size:14px;padding:8px 12px;white-space:normal">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— 看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒</div>'
+      ? '<div class="tag ok" style="font-size:14px;padding:8px 12px;white-space:normal">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— ' + (d.reminded ? '提醒已立即推播' : (d.remindReason && d.remindReason !== 'scheduled' ? '提醒發送失敗：' + esc(d.remindReason) : '看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒')) + '</div>'
       : '<div class="tag no" style="font-size:14px;padding:8px 12px">尚未綁定 LINE，無法推播提醒</div>' +
         (d.lineAddUrl ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(d.lineAddUrl) + '" alt="LINE QR"><div style="font-size:13px;color:var(--mut);margin-top:6px">請民眾掃描加入金鶯診所 LINE 並完成綁定（填寫姓名＋身分證）</div></div>' : '<div style="font-size:13px;color:var(--mut);margin-top:8px">請引導民眾加入金鶯診所 LINE 官方帳號並完成綁定。</div>');
     openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + clinicName() + '</b><span>日期時段</span><b>' + dateTxt(p.date) + '　' + S.slotLabel + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
@@ -653,6 +654,14 @@ function renderList() {
     return '<tr class="' + cls + '"><td>' + ck + '</td><td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + '</div></td></tr>';
   }).join('');
   S.view = rows;
+}
+function sendRemindersNow() {
+  if (!confirm('立即對「明天」所有待報到且尚未推播的預約發送 LINE 提醒？')) return;
+  get({ action:'sendReminders' }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    toast(d.date + '：成功 ' + d.sent + '、未綁定 ' + d.skipped + '、失敗 ' + d.failed + (d.fails && d.fails.length ? '（' + d.fails.join('；') + '）' : ''), d.failed ? 'err' : 'ok');
+    loadList();
+  }, document.getElementById('li-remind'));
 }
 function opCheck(i, undo) { var b = S.view[i]; if (!b) return; get({ action:'checkIn', id:b.id, undo:undo ? '1' : '0' }, function(d){ if (d.error) return toast(d.error, 'err'); toast(undo ? '已取消報到' : b.name + ' 報到完成', 'ok'); loadList(); }); }
 function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); closeModal(); loadList(); }); }
