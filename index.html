@@ -261,10 +261,10 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="card">
         <h3 class="step">STEP 4 <span>· 預約方式與民眾資料</span></h3>
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
-        <div class="fld"><label>身分證字號（LINE 綁定比對鍵）</label>
+        <div class="fld ac"><label>姓名（輸入即比對歷史預約與 LINE 綁定，自動帶出身分證）</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput(this.value);renderSummary()" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
+        <div class="fld"><label>身分證字號（LINE 綁定比對鍵；可由姓名自動帶入）</label>
           <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();renderSummary()" onkeydown="if(event.key==='Enter')pidLookup()"><button class="btn" onclick="pidLookup()">帶入</button></div>
           <div class="hint" id="pid-hint"></div></div>
-        <div class="fld ac"><label>姓名（輸入即搜尋歷史預約）</label><input id="b-name" placeholder="輸入姓名…" autocomplete="off" oninput="acInput(this.value);renderSummary()" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
         <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
         <div class="sum"><h5>預約摘要</h5><div id="sum"></div></div>
         <div class="cta"><button class="btn" id="b-submit" onclick="submitBooking()">確認預約</button></div>
@@ -515,18 +515,25 @@ function acInput(v) {
   clearTimeout(S.acTimer); S.bound = null; pidHint();
   if (v.trim().length < 1) { acHide(); return; }
   S.acTimer = setTimeout(function() {
-    get({ action:'searchPatient', q:v.trim() }, function(d) {
+    var typed = v.trim();
+    get({ action:'searchPatient', q:typed }, function(d) {
       if (d.error || !d.list) return;
+      if (document.getElementById('b-name').value.trim() !== typed) return; // 輸入已變，忽略舊結果
       S.acList = d.list; var box = document.getElementById('acl');
       if (!d.list.length) { acHide(); return; }
-      box.innerHTML = '<div class="h">歷史預約 / 綁定紀錄，點選自動帶入</div>' + d.list.map(function(p, i) {
-        var dt = p.lastDate ? p.lastDate.slice(5).replace('-', '/') : '';
-        return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span></div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (dt ? ' · ' + dt : '') + '</div></div>';
+      // 姓名完全相同且只有一人 → 直接帶入身分證
+      var exact = d.list.filter(function(p){ return p.name === typed; });
+      if (exact.length === 1 && document.getElementById('b-pid').value.length < 10) { acPick(d.list.indexOf(exact[0])); toast('已依歷史紀錄帶入 ' + exact[0].name + ' 的身分證（' + exact[0].pidMasked + '）', 'ok'); return; }
+      box.innerHTML = '<div class="h">歷史預約 / LINE 綁定紀錄' + (exact.length > 1 ? '（同名 ' + exact.length + ' 人，請核對身分證）' : '') + '，點選自動帶入</div>' + d.list.map(function(p, i) {
+        var dt = p.lastDate ? String(p.lastDate).slice(5).replace('-', '/') : '';
+        var where = (p.lastClinic ? esc(p.lastClinic) + '院區' : '') + (p.lastDoctor ? ' ' + esc(p.lastDoctor) : '');
+        return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (dt ? ' · ' + dt : '') + '</div></div>';
       }).join('');
       box.classList.remove('hidden');
     });
   }, 250);
 }
+function acEnter() { if (S.acList && S.acList.length === 1 && !document.getElementById('acl').classList.contains('hidden')) acPick(0); }
 function acPick(i) { var p = S.acList[i]; if (!p) return; document.getElementById('b-name').value = p.name; document.getElementById('b-pid').value = p.pid; S.bound = p.bound; pidHint(); acHide(); renderSummary(); }
 function acHide() { document.getElementById('acl').classList.add('hidden'); }
 function pidLookup() {
