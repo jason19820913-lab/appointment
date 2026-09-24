@@ -67,15 +67,6 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .card{background:var(--card);border-radius:var(--r);padding:26px 24px;box-shadow:0 1px 2px rgba(27,43,38,.04),0 6px 18px rgba(27,43,38,.05)}
 .book{display:grid;grid-template-columns:minmax(320px,430px) minmax(480px,1fr) minmax(360px,490px);grid-template-areas:"a b c";gap:28px;align-items:start}
 .col{display:flex;flex-direction:column;gap:22px}.col1{grid-area:a}.col2{grid-area:b}.col3{grid-area:c}
-/* 平板橫向 1000–1499：左欄 STEP1+2，右欄 STEP3 之後接 STEP4 */
-@media(max-width:1499px){.book{grid-template-columns:minmax(300px,380px) 1fr;grid-template-areas:"a b" "a c";gap:22px}.col2 .card{min-height:0!important}}
-/* 平板直向 / 手機：單欄依步驟排列 */
-@media(max-width:999px){.book{grid-template-columns:1fr;grid-template-areas:"a" "b" "c";gap:18px}.card{padding:20px 18px}main{padding:18px 16px}
-  .hin{padding:0 16px;gap:12px;height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.hin .brand small{display:none}.clock{display:none}
-  nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:10px 10px;font-size:15px;flex:1;text-align:center}.who .txt .role{display:none}}
-@media(max-width:600px){.slot b{font-size:17px}.cal .d{width:42px;height:42px;font-size:16px}.seg button{padding:14px;font-size:16px}.ltb .search{width:100%}}
-/* 觸控裝置：放大可點區域 */
-@media(pointer:coarse){.slot{min-height:78px}.ibtn,.datepill,.ltb select,.ltb .search,.ltb .btn.sec{height:50px}.ck{width:32px;height:32px}.obtn{padding:11px 16px}}
 
 /* 月曆 */
 .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -205,6 +196,27 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 .qr{text-align:center;margin-top:12px}.qr img{width:160px;height:160px;border:1px solid var(--line);border-radius:10px}
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1B2B26;color:#fff;padding:12px 20px;border-radius:12px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
 #toast.show{opacity:1}#toast.err{background:var(--red)}#toast.ok{background:var(--teal)}
+
+/* ===== RWD（放在最後以覆蓋前面的尺寸） ===== */
+/* 平板橫向 1000–1499：維持三欄（STEP4 在右），整體縮緊讓一個畫面看完 */
+@media(max-width:1499px){
+  .book{grid-template-columns:minmax(270px,330px) minmax(380px,1fr) minmax(290px,350px);gap:16px}.col{gap:14px}
+  main{padding:16px 16px 20px}.card{padding:18px 16px;border-radius:14px}.col2 .card{min-height:0!important}
+  .step{margin:0 0 12px;font-size:12px}.fld{margin-bottom:12px}.fld label{font-size:13px;margin-bottom:6px}.fld input,.fld select{height:44px;padding:10px 12px;font-size:15px}
+  .note{padding:9px 12px;font-size:12px}.foot-note,#doc-note{display:none}
+  .cal-h{margin-bottom:8px}.cal-h b{font-size:16px}.cal-h button{width:36px;height:36px;font-size:14px}.cal{gap:2px}.cal .wd{font-size:12px;padding:4px 0}.cal .d{width:38px;height:38px;font-size:15px;margin:1px auto}.legend{font-size:12px;margin-top:8px}
+  .sl-title{font-size:17px;margin-bottom:2px}.sl-legend{font-size:12px;gap:10px}.grp{margin-top:12px}.grp h4{font-size:14px;margin-bottom:8px}.slots{gap:8px}
+  .slot{padding:10px 6px 9px;gap:4px;min-height:0}.slot b{font-size:16px}.slot small{font-size:12px}.slot.on,.slot.warn.on{padding:9px 5px 8px}
+  .seg{gap:8px;margin-bottom:12px}.seg button{padding:11px;font-size:15px}.pid-row .btn{height:44px;padding:0 14px}.hint{min-height:14px;font-size:12px;margin-top:4px}
+  .sum{margin-top:12px;padding-top:10px}.sum h5{font-size:14px;margin-bottom:6px}.sum .kv{font-size:14px;padding:4px 0}.cta{margin-top:12px}.cta .btn{padding:15px;font-size:17px}
+  .aci{padding:10px 12px;font-size:14px}}
+/* 平板直向 / 手機：單欄依步驟排列 */
+@media(max-width:999px){.book{grid-template-columns:1fr;grid-template-areas:"a" "b" "c";gap:18px}.card{padding:20px 18px}main{padding:18px 16px}
+  .hin{padding:0 16px;gap:12px;height:auto;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.hin .brand small{display:none}.clock{display:none}
+  nav{order:3;width:100%;margin:0;justify-content:space-between}nav button{padding:10px 10px;font-size:15px;flex:1;text-align:center}.who .txt .role{display:none}}
+@media(max-width:600px){.slot b{font-size:17px}.cal .d{width:42px;height:42px;font-size:16px}.seg button{padding:14px;font-size:16px}.ltb .search{width:100%}}
+/* 觸控裝置：放大可點區域 */
+@media(pointer:coarse){.slot{min-height:78px}.ibtn,.datepill,.ltb select,.ltb .search,.ltb .btn.sec{height:50px}.ck{width:32px;height:32px}.obtn{padding:11px 16px}}
 </style>
 </head>
 <body>
@@ -296,7 +308,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     </div>
     <div class="lk" id="li-kpi"></div>
     <div class="card" style="padding:0;overflow:hidden">
-      <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
+      <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
       <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 10 秒自動更新</span><span id="li-count"></span></span></div>
     </div>
@@ -654,6 +666,8 @@ function renderList() {
     '<div class="k a"><small>逾時未到</small><b>' + k.late + '</b></div>';
   document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
   document.getElementById('li-count').textContent = '顯示 ' + rows.length + ' / 共 ' + S.list.length + ' 筆 · 依時段、序號排序';
+  var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin; // 管理團隊看「全部院區」時多一欄院區
+  document.getElementById('li-th-clinic').classList.toggle('hidden', !showClinic);
   document.getElementById('li-body').innerHTML = rows.map(function(b, i) {
     var cancelled = /取消/.test(b.status), late = lateMinutes(b), isLate = late > 0 || b.status === '未回診';
     var cls = cancelled ? 'cancel' : (isLate ? 'late' : '');
@@ -665,7 +679,7 @@ function renderList() {
     else if (b.status === '未回診') { st = '<span class="pill amb">未回診</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ' + det; }
     else if (isLate) { st = '<span class="pill amb">逾時未到' + (late < 9999 ? '（已過 ' + late + ' 分）' : '') + '</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
     else { st = '<span class="pill grey">待報到</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
-    return '<tr class="' + cls + '"><td>' + ck + '</td><td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + esc(b.doctor) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
