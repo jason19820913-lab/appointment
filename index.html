@@ -396,7 +396,9 @@ function logoFallback(img) {
   var d = document.createElement('div'); d.className = 'mark'; d.textContent = '金'; img.replaceWith(d);
 }
 // ==================== API ====================
-function get(params, cb, btn) {
+// opts.silent：背景自動更新（名單輪詢／目錄／時段背景刷新）逾時或失敗時不跳紅框，只在畫面角落標示，下一輪自動再試
+function get(params, cb, btn, opts) {
+  opts = opts || {};
   if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; }
   params.token = S.token;
   var q = Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }).join('&');
@@ -416,6 +418,8 @@ function get(params, cb, btn) {
   }).catch(function(e) {
     clearTimeout(timer); _listBusy = false;
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
+    S.netErrAt = Date.now(); var live = document.getElementById('li-live');
+    if (opts.silent) { if (live) live.textContent = '● 連線不穩，稍後自動重試（' + (e.name === 'AbortError' ? '逾時' : '失敗') + '）'; if (window.console) console.warn('[API] ' + params.action + ' 背景更新失敗：' + e.message); return; }
     toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
   });
 }
@@ -549,13 +553,14 @@ function loadSlots() {
     var t0 = Date.now(); document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span id="sl-sec"></span></div>';
     _slotTick = setInterval(function(){ var el = document.getElementById('sl-sec'); if (el) el.textContent = Math.round((Date.now() - t0) / 1000) + ' 秒'; }, 1000);
   }
+  var fromCache = !!(cached && Date.now() - cached.at < SLOT_CACHE_MS);
   get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
     if (seq !== _slotSeq) return; // 使用者已改選別的院區／日期，忽略舊回應
     if (_slotTick) { clearInterval(_slotTick); _slotTick = null; }
     if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
     S.slotCache[ck] = { d: d, at: Date.now() };
     renderSlots(d, false);
-  });
+  }, null, { silent: fromCache }); // 已有快取畫面時，背景更新失敗不打擾
 }
 function renderSlots(d, fromCache) {
   var keep = S.slot; // 背景更新時保留已選時段
@@ -597,7 +602,7 @@ function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button
 
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
 var DIR_REFRESH_MS = 120000;
-function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); } if (cb) cb(); }); }
+function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); } if (cb) cb(); }, null, { silent: true }); }
 // 四欄連動：姓名／身分證／出生年月日／電話 任一欄輸入 → 在本機目錄（病人主檔 ∪ LINE 綁定）比對，點選後四欄一起帶出；同院區就診過者排前面
 var AC_MIN = { name: 1, pid: 3, birth: 3, phone: 4 };
 function dirRec(x) { return { pid: x.p, pidMasked: mask(x.p), name: x.n, lastDate: x.d, lastClinic: x.c, lastDoctor: x.dr, bound: x.b, source: x.s, phone: x.ph || '', birth: x.bd || '' }; }
@@ -759,7 +764,7 @@ function loadList(silent) {
     var sel = document.getElementById('li-doctor'), cur = sel.value;
     sel.innerHTML = '<option value="">全部醫師</option>' + Object.keys(names).sort().map(function(n){ return '<option' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
     renderList();
-  });
+  }, null, { silent: !!silent }); // 每 10 秒自動輪詢失敗不跳紅框；手動切日期／按重新整理才提示
 }
 function slotMin(slot) { var m = String(slot).match(/^(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
 function lateMinutes(b) { // 今日(或過去)且待報到、時段結束已過 → 回傳逾時分鐘數；否則 0
