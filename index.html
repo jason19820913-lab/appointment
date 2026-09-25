@@ -462,7 +462,7 @@ function enterApp(preloaded, onFail) {
 }
 
 function fillClinicSelects() {
-  var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">金鶯診所 ' + c.name + '院區</option>'; }).join('');
+  var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
   var all = S.user.isAdmin ? '<option value="">全部院區</option>' : '';
   document.getElementById('b-clinic').innerHTML = opts;
   document.getElementById('b-clinic-n').textContent = '（共 ' + S.clinics.length + ' 個）';
