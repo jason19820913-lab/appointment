@@ -27,7 +27,7 @@ input,select{font-family:inherit;font-size:16px;color:var(--tx)}
 .btn.sec{background:#fff;color:var(--tx);border:1px solid var(--line)}.btn.sec:hover{background:var(--teal-l)}
 .btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}.btn.ghost:hover{background:var(--teal-l)}
 .btn.sm{padding:7px 12px;font-size:13px;border-radius:8px}.btn.red{background:var(--red)}
-.step{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--tx);margin:0 0 18px}.step span{color:var(--mut);font-weight:500;letter-spacing:0;margin-left:6px}
+.step{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--tx);margin:0 0 18px}.step-row{display:flex;align-items:center}.step-row span{flex:1}.clearbtn{margin-left:auto;background:#fff;border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:500;letter-spacing:0;cursor:pointer;white-space:nowrap}.clearbtn:hover{border-color:var(--red);color:var(--red);background:#fff5f5}.step span{color:var(--mut);font-weight:500;letter-spacing:0;margin-left:6px}
 .note{display:flex;gap:8px;align-items:flex-start;background:var(--teal-l);color:#2E5A52;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6}
 .note.plain{background:var(--grey-l);color:var(--mut)}
 .tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
@@ -293,7 +293,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 
     <div class="col col3">
       <div class="card">
-        <h3 class="step">STEP 4 <span>· 預約方式與民眾資料</span></h3>
+        <h3 class="step step-row">STEP 4 <span>· 預約方式與民眾資料</span><button type="button" class="clearbtn" onclick="clearPatient()" title="清空姓名、身分證、生日、電話、備註">✕ 一鍵清空</button></h3>
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
         <div class="hint" style="margin:-4px 0 6px">姓名／身分證／生日／電話 任一欄輸入即比對本院區就診名單與 LINE 綁定，點選後四欄自動帶齊</div>
         <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput('name',this.value);renderSummary()" onfocus="acInput('name',this.value)" onblur="acBlur()"><div class="acl hidden" id="acl"></div></div>
@@ -441,11 +441,19 @@ function doLogin() {
 document.getElementById('l-pw').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
 
 function logout() {
-  stopListPoll();
+  stopListPoll(); if (S._dirTimer) { clearInterval(S._dirTimer); S._dirTimer = null; }
   try { localStorage.removeItem(LS_KEY); } catch (e) {}
-  S.token = ''; S.user = null;
+  S.token = ''; S.user = null; S.dir = null; S.slotCache = {};
+  resetLoginForm(true);
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login').classList.remove('hidden');
+  setTimeout(function(){ var el = document.getElementById('l-id'); if (el) el.focus(); }, 50);
+}
+// 登入表單回到初始狀態（登出／自動登入失敗時）：按鈕可按、清空帳密，必須重新輸入
+function resetLoginForm(clearId) {
+  var btn = document.getElementById('l-btn'); btn.disabled = false; btn.textContent = '登入';
+  document.getElementById('l-pw').value = ''; if (clearId) document.getElementById('l-id').value = '';
+  document.getElementById('l-err').textContent = '';
 }
 
 function enterApp(preloaded, onFail) {
@@ -464,6 +472,7 @@ function enterApp(preloaded, onFail) {
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     renderCal(); onClinicChange(); startListPoll();
+    resetLoginForm(true); // 進入系統後把登入表單歸零，之後登出看到的是乾淨的登入頁
     loadDirectory(); if (!S._dirTimer) S._dirTimer = setInterval(function(){ if (!document.hidden) loadDirectory(); }, DIR_REFRESH_MS);
   };
   if (preloaded) apply(preloaded); else get({ action:'getInit' }, apply);
@@ -488,7 +497,7 @@ function fillClinicSelects() {
     S.token = o.token; S.user = o.user;
     var btn = document.getElementById('l-btn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 自動登入中…';
     document.getElementById('l-id').value = o.user && o.user.empId || '';
-    enterApp(null, function(){ btn.disabled = false; btn.textContent = '登入'; });
+    enterApp(null, function(){ resetLoginForm(false); });
   } catch (e) {}
 })();
 
@@ -721,6 +730,12 @@ function submitBooking() {
     openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + clinicName() + '</b><span>日期時段</span><b>' + dateTxt(p.date) + '　' + S.slotLabel + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
       '<div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn" onclick="closeModal();document.getElementById(\'b-name\').focus()">完成，輸入下一位</button></div>');
   }, document.getElementById('b-submit'));
+}
+// 一鍵清空：只清民眾資料（姓名／身分證／生日／電話／備註），院區、日期、時段、預約方式保留，直接換下一位
+function clearPatient() {
+  ['b-name', 'b-pid', 'b-birth', 'b-phone', 'b-note'].forEach(function(id){ document.getElementById(id).value = ''; });
+  acHide(); S.acList = []; S.bound = null; pidHint(); renderSummary();
+  document.getElementById('b-name').focus(); toast('已清空民眾資料', '');
 }
 function resetForm() {
   ['b-name', 'b-pid', 'b-note', 'b-phone', 'b-birth'].forEach(function(id){ var el = document.getElementById(id); el.value = ''; el.defaultValue = ''; });
