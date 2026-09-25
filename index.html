@@ -328,7 +328,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
-      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 10 秒自動更新</span><span id="li-count"></span></span></div>
+      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 10 秒自動檢查</span><span id="li-count"></span></span></div>
     </div>
   </section>
 
@@ -761,32 +761,46 @@ function resetForm() {
 // ==================== 每日名單 ====================
 // 每日名單自動更新：畫面停在名單頁且視窗在前景時，每 20 秒重新載入；切回分頁 / 視窗取得焦點時也立即更新
 var LIST_POLL_MS = 10000, _pollTimer = null, _listBusy = false;
+// 輪詢改為「先問版本號」：getVer 只讀伺服器快取、不開試算表，通常 0.2 秒內回；版本沒變就不重抓名單（每 90 秒仍強制抓一次保險）
+var LIST_FORCE_MS = 90000, _verBusy = false;
 function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
   var visible = !document.getElementById('v-list').classList.contains('hidden') && !document.hidden;
   var modalOpen = !document.getElementById('modal').classList.contains('hidden');
-  if (visible && !modalOpen && !_listBusy) loadList(true);
+  if (!visible || modalOpen || _listBusy || _verBusy) return;
+  if (!S.listVer || Date.now() - (S.listAt || 0) > LIST_FORCE_MS) { loadList(true); return; }
+  _verBusy = true;
+  get({ action:'getVer' }, function(d) {
+    _verBusy = false;
+    if (d && d.ver && d.ver !== S.listVer) loadList(true);
+    else { var live = document.getElementById('li-live'); if (live && S.listAt) { var n = new Date(S.listAt); live.textContent = '● 每 10 秒自動檢查 · 資料無變動 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds()); } }
+  }, null, { silent: true });
 }, LIST_POLL_MS); }
 function stopListPoll() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = null; }
 document.addEventListener('visibilitychange', function(){ if (!document.hidden && !document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
 window.addEventListener('focus', function(){ if (!document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
-var _listSeq = 0;
+var _listSeq = 0; S.listCache = {};
 function loadList(silent) {
   var date = document.getElementById('li-date').value || S.today, clinicSel = document.getElementById('li-clinic').value;
   document.getElementById('li-datetxt').textContent = dateTxt(date);
   document.getElementById('li-today').classList.toggle('hidden', date !== S.today);
   _listBusy = true; var live = document.getElementById('li-live'); if (live) live.style.opacity = '.45';
-  var seq = ++_listSeq;
-  if (!silent) { S.list = []; renderList(); document.getElementById('li-live') && (document.getElementById('li-live').textContent = '載入 ' + dateTxt(date) + ' 名單…'); }
+  var seq = ++_listSeq, lk = clinicSel + '|' + date, lc = S.listCache[lk];
+  if (!silent) {
+    // 切日期／院區：先用上次抓過的名單立刻顯示（標示更新中），再向伺服器要最新
+    if (lc) { S.list = lc.list; S.listNow = lc.now; renderList(); if (live) live.textContent = '● 更新 ' + dateTxt(date) + ' 名單中…'; }
+    else { S.list = []; renderList(); if (live) live.textContent = '載入 ' + dateTxt(date) + ' 名單…'; }
+  }
   get({ action:'getBookings', clinicCode:clinicSel, date:date }, function(d) {
     // 只接受「目前所選日期／院區」的最新一次回應：切換日期後，較慢回來的舊回應（前一天／後一天）一律忽略，名單才不會跳來跳去
     if (seq !== _listSeq || date !== (document.getElementById('li-date').value || S.today) || clinicSel !== document.getElementById('li-clinic').value) { if (seq === _listSeq) _listBusy = false; return; }
     if (d.date && d.date !== date) { _listBusy = false; return; }
     _listBusy = false; if (live) live.style.opacity = '1';
     if (d.error) { if (!silent) toast(d.error, 'err'); return; }
-    S.list = d.list.filter(function(b){ return !b.date || b.date === date; }); S.listNow = d.now || '';
-    var n = new Date(); if (live) live.textContent = '● 每 10 秒自動更新 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
+    S.list = d.list.filter(function(b){ return !b.date || b.date === date; }); S.listNow = d.now || ''; S.listVer = d.ver || ''; S.listAt = Date.now();
+    S.listCache[lk] = { list: S.list, now: S.listNow };
+    var n = new Date(); if (live) live.textContent = '● 每 10 秒自動檢查 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
     // 醫師篩選選項：該院區名單 + 當日出現過的醫師
     var code = document.getElementById('li-clinic').value; var names = {};
     S.doctors.forEach(function(x){ if (!code || x.clinicCode === code) names[x.name] = 1; }); S.list.forEach(function(b){ names[b.doctor] = 1; });
