@@ -559,8 +559,10 @@ function loadSlots() {
   var seq = ++_slotSeq, ck = code + '|' + S.date, cached = S.slotCache[ck];
   if (cached && Date.now() - cached.at < SLOT_CACHE_MS) renderSlots(cached.d, true);
   else {
-    var t0 = Date.now(); document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span id="sl-sec"></span></div>';
-    _slotTick = setInterval(function(){ var el = document.getElementById('sl-sec'); if (el) el.textContent = Math.round((Date.now() - t0) / 1000) + ' 秒'; }, 1000);
+    // 先用本機設定（開診／關診／休診／上限）立刻畫出時段格，人數等伺服器回來再填；格子可先點選，送出時後端仍會檢核額滿
+    var sk = localSlots(code); if (sk) renderSlots(sk, true); else document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span class="sl-sec"></span></div>';
+    var t0 = Date.now();
+    _slotTick = setInterval(function(){ var sec = Math.round((Date.now() - t0) / 1000) + ' 秒'; document.querySelectorAll('.sl-sec').forEach(function(el){ el.textContent = sec; }); }, 1000);
   }
   var fromCache = !!(cached && Date.now() - cached.at < SLOT_CACHE_MS);
   get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
@@ -570,6 +572,18 @@ function loadSlots() {
     S.slotCache[ck] = { d: d, at: Date.now() };
     renderSlots(d, false);
   }, null, { silent: fromCache }); // 已有快取畫面時，背景更新失敗不打擾
+}
+// 依登入時取得的設定在本機產生時段骨架（count=null 表示人數尚未載入）
+function localSlots(code) {
+  var c = S.clinics.filter(function(x){ return x.code === code; })[0]; if (!c || !S.settings) return null;
+  var start = slotMin(S.settings.openTime || '08:00'), end = slotMin(S.settings.closeTime || '21:00'); if (!(end - start >= 60)) { start = 480; end = 1260; }
+  var cap = c.cap || S.settings.defaultCap || 10, closed = (c.closed || []).map(function(x){ return Array.isArray(x) ? x : [x * 60, x * 60 + 60]; }), out = [];
+  for (var m = start; m + 60 <= end; m += 60) {
+    if (closed.some(function(r){ return m >= r[0] && m < r[1]; })) continue;
+    var k = p2(Math.floor(m / 60)) + ':' + p2(m % 60), e = p2(Math.floor((m + 60) / 60)) + ':' + p2((m + 60) % 60);
+    out.push({ hour: Math.floor(m / 60), min: m, key: k, end: e, label: k + '-' + e, count: null, cap: cap, people: [] });
+  }
+  return { success: true, slots: out, cap: cap, skeleton: true };
 }
 function renderSlots(d, fromCache) {
   var keep = S.slot; // 背景更新時保留已選時段
@@ -583,11 +597,11 @@ function renderSlots(d, fromCache) {
       var n = list.length, cols = n === 4 ? 2 : Math.min(3, Math.ceil(n / Math.ceil(n / 3))); // 一列最多 3 格；4 格排成 2×2
       html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
-        var full = s.count >= s.cap, warn = !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
-        var cnt = '已約 ' + s.count + ' / 上限 ' + s.cap;
+        var pending = s.count == null, full = !pending && s.count >= s.cap, warn = !pending && !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
+        var cntTxt = pending ? '人數載入中…' : '已約 ' + s.count + ' / 上限 ' + s.cap, cnt = pending ? cntTxt + ' <span class="sl-sec"></span>' : cntTxt;
         var who = (s.people || []).map(function(x){ return esc(x.n) + ' · ' + esc(shortDoc(x.d)) + (x.st === '已報到' ? ' ✓' : ''); });
         var whoHtml = who.length ? '<div class="who" title="' + (s.people || []).map(function(x){ return x.n + '（' + x.d + '｜' + x.st + '）'; }).join('\n') + '">' + who.slice(0, 3).join('<br>') + (who.length > 3 ? '<br>… 還有 ' + (who.length - 3) + ' 位' : '') + '</div>' : '';
-        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + (who.length ? ' has' : '') + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="' + cnt + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? cnt + ' · 已過' : (full ? '額滿 ' + s.count + ' / ' + s.cap : cnt)) + '</small>' + whoHtml + '</div>';
+        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + (who.length ? ' has' : '') + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="' + cntTxt + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? cnt + ' · 已過' : (full ? '額滿 ' + s.count + ' / ' + s.cap : cnt)) + '</small>' + whoHtml + '</div>';
       });
       html += '</div></div>';
     });
