@@ -126,7 +126,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .acl .h{background:var(--grey-l);color:var(--mut);font-size:13px;padding:10px 16px}
 .aci{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:16px;border-top:1px solid var(--line2)}
 .sched{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:-6px 0 10px;font-size:13px}.sched .lb{color:var(--mut);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px}.sched .dr{color:var(--tx);font-weight:600}.sched .dr small{color:var(--mut);font-weight:400;margin-left:2px}.sched .dr.chg{color:var(--red)}.sched .dr.chg small{color:var(--red)}.sched .dr.none{color:var(--mut);font-weight:400}
-.schedsrc{font-size:12px;color:var(--mut);margin:4px 0 12px}.schedsrc.none{color:#b08a2e}
+.schedsrc{font-size:12px;color:var(--mut);margin:4px 0 12px}.schedsrc.none{color:#b08a2e}.schedsrc.est{color:#7a6a2a;background:#fbf6e6;border-radius:8px;padding:6px 10px}
 .aci:hover{background:var(--teal-l)}.aci.here b::after{content:'本院區';font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:6px;padding:0 5px;margin-left:6px;font-weight:500;vertical-align:1px}
 .aci b{font-weight:700}.aci .pid{color:var(--mut);margin-left:6px;font-size:15px}
 .aci .r{font-size:13px;color:var(--mut);white-space:nowrap}.aci .r .ok{color:var(--teal);font-weight:500}
@@ -271,7 +271,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="card">
         <h3 class="step">STEP 1 <span>· 選擇院區與醫師</span></h3>
         <div class="fld"><label>院區 <span id="b-clinic-n"></span></label><select id="b-clinic" onchange="onClinicChange()"></select></div>
-        <div class="fld"><label>看診醫師（依官網醫療團隊帶入）</label><select id="b-doctor" onchange="renderSummary()"><option value="不指定醫師">不指定醫師</option></select></div>
+        <div class="fld"><label>看診醫師（依官網班表列出當日有診醫師）</label><select id="b-doctor" onchange="S.docAuto=false;renderSummary()"><option value="不指定醫師">不指定醫師</option></select></div>
         <div class="note" id="doc-note">ⓘ 醫師名單每日自動同步官網各院區醫療團隊；可在「醫師名單」頁手動新增或停用。</div>
       </div>
       <div class="card">
@@ -520,11 +520,50 @@ function showView(v) {
 // ==================== STEP 1 ====================
 function clinicName() { var c = S.clinics.filter(function(x){ return x.code === document.getElementById('b-clinic').value; })[0]; return c ? c.name + '院區' : ''; }
 function onClinicChange() {
+  S.sched = null; S.schedKey = '';
+  renderDoctorSelect();
+  loadSlots();
+}
+// 醫師姓名正規化（班表用本名、醫師名單含稱謂：陳珠 ↔ 陳珠醫師、林永昌 ↔ 林永昌院長、曾捷聖 ↔ 曾㨗聖）
+function normDoc(n) { return String(n || '').replace(/^(減重名醫|總院長)/, '').replace(/(醫師|院長|執行長|主任)$/, '').replace(/㨗/g, '捷').replace(/\s/g, ''); }
+// 看診醫師下拉：以官網班表為主 —「選定時段有診」→「本日其他時段有診」→「其他醫師」；只有一位涵蓋所選時段時自動帶入
+function renderDoctorSelect() {
+  var sel = document.getElementById('b-doctor'), cur = sel.value || '不指定醫師';
   var code = document.getElementById('b-clinic').value;
   var docs = S.doctors.filter(function(d){ return d.clinicCode === code; });
-  document.getElementById('b-doctor').innerHTML = '<option value="不指定醫師">不指定醫師</option>' + docs.map(function(d){ return '<option>' + esc(d.name) + '</option>'; }).join('');
-  document.getElementById('doc-note').innerHTML = docs.length ? 'ⓘ 此院區目前 ' + docs.length + ' 位醫師（官網同步：' + (S.settings.doctorSync || '尚未') + '）。' : 'ⓘ 此院區尚無醫師名單，請至「醫師名單」按「立即同步官網」或手動新增。';
-  loadSlots();
+  var byNorm = {}; docs.forEach(function(d){ byNorm[normDoc(d.name)] = d.name; });
+  var sched = (S.sched && S.schedKey === code + '|' + S.date) ? S.sched : null;
+  var m0 = S.slot ? slotMin(S.slot) : null, m1 = m0 != null ? m0 + 60 : null;
+  var duty = [], seen = {}; // 本日有診
+  if (sched && sched.sessions) ['早', '午', '晚'].forEach(function(k) {
+    (sched.sessions[k] || []).forEach(function(x) {
+      var full = byNorm[normDoc(x.n)] || x.n, key = full + '|' + x.s;
+      if (seen[key]) return; seen[key] = 1;
+      var covers = m0 != null && m0 < slotMin(x.e) && m1 > slotMin(x.s);
+      duty.push({ name: full, label: full + '　' + x.s + '–' + x.e + '（' + k + '診）' + (x.x ? ' ⚠異動' : ''), covers: covers, chg: x.x, order: slotMin(x.s) });
+    });
+  });
+  duty.sort(function(a, b){ return (b.covers - a.covers) || (a.order - b.order); });
+  var dutyNames = {}; duty.forEach(function(d){ dutyNames[d.name] = 1; });
+  var others = docs.filter(function(d){ return !dutyNames[d.name]; });
+  var opt = function(d){ return '<option value="' + esc(d.name) + '">' + esc(d.label || d.name) + '</option>'; };
+  var html = '<option value="不指定醫師">不指定醫師</option>';
+  var cov = duty.filter(function(d){ return d.covers; }), rest = duty.filter(function(d){ return !d.covers; });
+  if (cov.length) html += '<optgroup label="▶ 所選時段有診（官網班表）">' + cov.map(opt).join('') + '</optgroup>';
+  if (rest.length) html += '<optgroup label="' + (cov.length ? '本日其他時段有診' : (S.slot ? '本日有診（所選時段無醫師排班）' : '本日有診（官網班表）')) + '">' + rest.map(opt).join('') + '</optgroup>';
+  if (others.length) html += '<optgroup label="' + (duty.length ? '其他醫師（本日無班）' : '醫師名單') + '">' + others.map(opt).join('') + '</optgroup>';
+  sel.innerHTML = html;
+  // 保留原選擇；若原本是「不指定」且剛好只有一位醫師涵蓋所選時段 → 自動帶入
+  var names = Array.prototype.map.call(sel.options, function(o){ return o.value; });
+  var userPicked = cur !== '不指定醫師' && !S.docAuto && names.indexOf(cur) >= 0;
+  if (userPicked) sel.value = cur; // 櫃檯自己選的醫師一律保留
+  else if (cov.length === 1) { sel.value = cov[0].name; S.docAuto = true; } // 自動帶入（換時段會跟著換）
+  else { sel.value = '不指定醫師'; S.docAuto = false; }
+  var pickedCovers = sel.value === '不指定醫師' || !S.slot || !sched || cov.some(function(d){ return d.name === sel.value; });
+  var note = document.getElementById('doc-note');
+  if (sched) note.innerHTML = 'ⓘ 依官網班表：本日 ' + Object.keys(dutyNames).length + ' 位醫師有診' + (docs.length ? '；院區名單共 ' + docs.length + ' 位。' : '。') + (duty.some(function(d){ return d.chg; }) ? ' <span style="color:var(--red)">⚠ 官網標示本日班表有異動</span>' : '') + (!pickedCovers ? ' <span style="color:var(--red)">⚠ 所選醫師在 ' + S.slot + ' 時段依班表沒有看診，請確認</span>' : '');
+  else note.innerHTML = docs.length ? 'ⓘ 此院區目前 ' + docs.length + ' 位醫師（官網同步：' + (S.settings.doctorSync || '尚未') + '）；選好日期後會依官網班表列出當日有診醫師。' : 'ⓘ 此院區尚無醫師名單；選好日期後會依官網班表列出當日有診醫師。';
+  renderSummary();
 }
 
 // ==================== STEP 2 月曆 ====================
@@ -559,7 +598,7 @@ function loadSlots() {
   if (_slotTick) { clearInterval(_slotTick); _slotTick = null; }
   if (!code || !S.date) { document.getElementById('slots').innerHTML = '<div class="empty">請先選擇院區與日期</div>'; return; }
   var seq = ++_slotSeq, ck = code + '|' + S.date, cached = S.slotCache[ck];
-  if (cached && Date.now() - cached.at < SLOT_CACHE_MS) renderSlots(cached.d, true);
+  if (cached && Date.now() - cached.at < SLOT_CACHE_MS) { S.schedKey = ck; renderSlots(cached.d, true); }
   else {
     // 先用本機設定（開診／關診／休診／上限）立刻畫出時段格，人數等伺服器回來再填；格子可先點選，送出時後端仍會檢核額滿
     var sk = localSlots(code); if (sk) renderSlots(sk, true); else document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span class="sl-sec"></span></div>';
@@ -572,7 +611,7 @@ function loadSlots() {
     if (_slotTick) { clearInterval(_slotTick); _slotTick = null; }
     if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
     S.slotCache[ck] = { d: d, at: Date.now() };
-    renderSlots(d, false);
+    S.schedKey = ck; renderSlots(d, false);
   }, null, { silent: fromCache }); // 已有快取畫面時，背景更新失敗不打擾
 }
 // 依登入時取得的設定在本機產生時段骨架（count=null 表示人數尚未載入）
@@ -592,7 +631,7 @@ function renderSlots(d, fromCache) {
   {
     d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (!s.end) s.end = p2(Math.floor((s.min + 60) / 60)) + ':' + p2((s.min + 60) % 60); if (!s.label) s.label = s.key + '-' + s.end; });
     var groups = [ { t:'上午診', k:'早', f:function(m){ return m < 12 * 60; } }, { t:'下午診', k:'午', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', k:'晚', f:function(m){ return m >= 18 * 60; } } ];
-    var sched = d.schedule || null; S.sched = sched;
+    var sched = d.schedule || null; if (!d.skeleton) S.sched = sched;
     var html = '';
     groups.forEach(function(g) {
       var list = d.slots.filter(function(s){ return g.f(s.min); }); if (!list.length) return;
@@ -611,10 +650,16 @@ function renderSlots(d, fromCache) {
       });
       html += '</div></div>';
     });
-    if (html && !d.skeleton) html = (sched ? '<div class="schedsrc">官網班表：' + esc(sched.title || '') + (sched.mode === '每週' ? '（固定週班）' : '') + '</div>' : '<div class="schedsrc none">官網班表尚無此日資料（未影響預約）</div>') + html;
+    if (html && !d.skeleton) {
+      var srcTxt = !sched ? '<div class="schedsrc none">官網班表尚無此日資料（未影響預約）</div>'
+        : sched.mode === '推估' ? '<div class="schedsrc est">班表推估：官網尚未公告本週，依「' + esc(sched.title || '') + '」同星期複製；每日 06:00 檢查官網，有異動會自動更新</div>'
+        : '<div class="schedsrc">官網班表：' + esc(sched.title || '') + (sched.mode === '每週' ? '（固定週班）' : '') + '</div>';
+      html = srcTxt + html;
+    }
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
     if (keep) { var kel = document.querySelector('.slot[data-k="' + keep + '"]'); if (kel && !kel.classList.contains('full') && !kel.classList.contains('past')) pickSlot(kel, false, false); else { S.slot = ''; S.slotLabel = ''; renderSummary(); } }
     if (S.pendingSlot) { var el = document.querySelector('.slot[data-k="' + S.pendingSlot + '"]'); if (el && !el.classList.contains('full') && !el.classList.contains('past')) pickSlot(el, false, false); S.pendingSlot = ''; }
+    if (!d.skeleton) renderDoctorSelect();
     if (S.pendingDoctor) { var ds = document.getElementById('b-doctor'); for (var i = 0; i < ds.options.length; i++) if (ds.options[i].value === S.pendingDoctor) ds.value = S.pendingDoctor; S.pendingDoctor = ''; renderSummary(); }
   }
 }
@@ -624,7 +669,7 @@ function pickSlot(el, full, past) {
   if (full) { toast('此時段已額滿', 'err'); return; }
   document.querySelectorAll('.slot.on').forEach(function(s){ s.classList.remove('on'); s.querySelector('small').textContent = s.dataset.c; });
   el.classList.add('on'); el.querySelector('small').textContent = el.dataset.c + ' · 已選取';
-  S.slot = el.dataset.k; S.slotLabel = el.dataset.l; renderSummary();
+  S.slot = el.dataset.k; S.slotLabel = el.dataset.l; renderDoctorSelect(); renderSummary();
 }
 
 // ==================== STEP 4 ====================
@@ -760,7 +805,7 @@ function clearPatient() {
 }
 function resetForm() {
   ['b-name', 'b-pid', 'b-note', 'b-phone', 'b-birth'].forEach(function(id){ var el = document.getElementById(id); el.value = ''; el.defaultValue = ''; });
-  acHide(); S.acList = []; S.bound = null; pidHint(); S.slot = ''; S.slotLabel = '';
+  acHide(); S.acList = []; S.bound = null; pidHint(); S.slot = ''; S.slotLabel = ''; S.docAuto = false;
   document.querySelectorAll('.slot.on').forEach(function(x){ x.classList.remove('on'); x.querySelector('small').textContent = x.dataset.c; });
   renderSummary();
 }
