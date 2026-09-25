@@ -125,6 +125,8 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .acl{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);z-index:30;overflow:hidden}
 .acl .h{background:var(--grey-l);color:var(--mut);font-size:13px;padding:10px 16px}
 .aci{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:16px;border-top:1px solid var(--line2)}
+.sched{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:-6px 0 10px;font-size:13px}.sched .lb{color:var(--mut);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px}.sched .dr{color:var(--tx);font-weight:600}.sched .dr small{color:var(--mut);font-weight:400;margin-left:2px}.sched .dr.chg{color:var(--red)}.sched .dr.chg small{color:var(--red)}.sched .dr.none{color:var(--mut);font-weight:400}
+.schedsrc{font-size:12px;color:var(--mut);margin:4px 0 12px}.schedsrc.none{color:#b08a2e}
 .aci:hover{background:var(--teal-l)}.aci.here b::after{content:'本院區';font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:6px;padding:0 5px;margin-left:6px;font-weight:500;vertical-align:1px}
 .aci b{font-weight:700}.aci .pid{color:var(--mut);margin-left:6px;font-size:15px}
 .aci .r{font-size:13px;color:var(--mut);white-space:nowrap}.aci .r .ok{color:var(--teal);font-weight:500}
@@ -589,13 +591,17 @@ function renderSlots(d, fromCache) {
   var keep = S.slot; // 背景更新時保留已選時段
   {
     d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (!s.end) s.end = p2(Math.floor((s.min + 60) / 60)) + ':' + p2((s.min + 60) % 60); if (!s.label) s.label = s.key + '-' + s.end; });
-    var groups = [ { t:'上午診', f:function(m){ return m < 12 * 60; } }, { t:'下午診', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', f:function(m){ return m >= 18 * 60; } } ];
+    var groups = [ { t:'上午診', k:'早', f:function(m){ return m < 12 * 60; } }, { t:'下午診', k:'午', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', k:'晚', f:function(m){ return m >= 18 * 60; } } ];
+    var sched = d.schedule || null; S.sched = sched;
     var html = '';
     groups.forEach(function(g) {
       var list = d.slots.filter(function(s){ return g.f(s.min); }); if (!list.length) return;
       var lo = list[0], hi = list[list.length - 1];
       var n = list.length, cols = n === 4 ? 2 : Math.min(3, Math.ceil(n / Math.ceil(n / 3))); // 一列最多 3 格；4 格排成 2×2
-      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4><div class="slots" style="--c:' + cols + '">';
+      // 官網班表：該診有班的醫師與時間（紅字＝官網標示異動）
+      var sc = sched && sched.sessions && sched.sessions[g.k] || null, scHtml = '';
+      if (sched) scHtml = '<div class="sched">' + (sc && sc.length ? '<span class="lb">班表</span>' + sc.map(function(x){ return '<span class="dr' + (x.x ? ' chg' : '') + '" title="' + (x.x ? '官網標示異動' : '') + '">' + esc(x.n) + ' <small>' + x.s + '–' + x.e + '</small></span>'; }).join('') : '<span class="lb">班表</span><span class="dr none">此診無排班</span>') + '</div>';
+      html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4>' + scHtml + '<div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
         var pending = s.count == null, full = !pending && s.count >= s.cap, warn = !pending && !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
         var cntTxt = pending ? '人數載入中…' : '已約 ' + s.count + ' / 上限 ' + s.cap, cnt = pending ? cntTxt + ' <span class="sl-sec"></span>' : cntTxt;
@@ -605,6 +611,7 @@ function renderSlots(d, fromCache) {
       });
       html += '</div></div>';
     });
+    if (html && !d.skeleton) html = (sched ? '<div class="schedsrc">官網班表：' + esc(sched.title || '') + (sched.mode === '每週' ? '（固定週班）' : '') + '</div>' : '<div class="schedsrc none">官網班表尚無此日資料（未影響預約）</div>') + html;
     document.getElementById('slots').innerHTML = html || '<div class="empty">此日無可預約時段</div>';
     if (keep) { var kel = document.querySelector('.slot[data-k="' + keep + '"]'); if (kel && !kel.classList.contains('full') && !kel.classList.contains('past')) pickSlot(kel, false, false); else { S.slot = ''; S.slotLabel = ''; renderSummary(); } }
     if (S.pendingSlot) { var el = document.querySelector('.slot[data-k="' + S.pendingSlot + '"]'); if (el && !el.classList.contains('full') && !el.classList.contains('past')) pickSlot(el, false, false); S.pendingSlot = ''; }
