@@ -125,7 +125,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .acl{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);z-index:30;overflow:hidden}
 .acl .h{background:var(--grey-l);color:var(--mut);font-size:13px;padding:10px 16px}
 .aci{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:16px;border-top:1px solid var(--line2)}
-.aci:hover{background:var(--teal-l)}
+.aci:hover{background:var(--teal-l)}.aci.here b::after{content:'本院區';font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:6px;padding:0 5px;margin-left:6px;font-weight:500;vertical-align:1px}
 .aci b{font-weight:700}.aci .pid{color:var(--mut);margin-left:6px;font-size:15px}
 .aci .r{font-size:13px;color:var(--mut);white-space:nowrap}.aci .r .ok{color:var(--teal);font-weight:500}
 .sum{border-top:1px dashed var(--line);margin-top:26px;padding-top:18px}
@@ -295,11 +295,15 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="card">
         <h3 class="step">STEP 4 <span>· 預約方式與民眾資料</span></h3>
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
-        <div class="fld ac"><label>姓名（輸入即比對歷史預約與 LINE 綁定，自動帶出身分證）</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput(this.value);renderSummary()" onblur="setTimeout(acHide,180)"><div class="acl hidden" id="acl"></div></div>
-        <div class="fld"><label>身分證字號（LINE 綁定比對鍵；可由姓名自動帶入）</label>
-          <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();pidAuto();renderSummary()" onkeydown="if(event.key==='Enter')pidLookup()"><button class="btn" onclick="pidLookup()">帶入</button></div>
+        <div class="hint" style="margin:-4px 0 6px">姓名／身分證／生日／電話 任一欄輸入即比對本院區就診名單與 LINE 綁定，點選後四欄自動帶齊</div>
+        <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput('name',this.value);renderSummary()" onfocus="acInput('name',this.value)" onblur="acBlur()"><div class="acl hidden" id="acl"></div></div>
+        <div class="fld ac"><label>身分證字號（LINE 綁定比對鍵）</label>
+          <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();acInput('pid',this.value);renderSummary()" onfocus="acInput('pid',this.value)" onblur="acBlur()" onkeydown="if(event.key==='Enter')acEnter()"><button class="btn" onclick="pidLookup()">帶入</button></div>
           <div class="hint" id="pid-hint"></div></div>
-        <div class="fld"><label>電話號碼（選填，僅供櫃檯聯絡）</label><input id="b-phone" type="tel" inputmode="numeric" placeholder="0912345678" maxlength="12" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+        <div class="grid2">
+          <div class="fld ac"><label>出生年月日（民國）</label><input id="b-birth" inputmode="numeric" placeholder="068/09/13" maxlength="10" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9\/]/g,'');acInput('birth',this.value)" onfocus="acInput('birth',this.value)" onblur="acBlur();birthTidy()" onkeydown="if(event.key==='Enter')acEnter()"></div>
+          <div class="fld ac"><label>電話號碼</label><input id="b-phone" type="tel" inputmode="numeric" placeholder="0912345678" maxlength="12" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'');acInput('phone',this.value)" onfocus="acInput('phone',this.value)" onblur="acBlur()" onkeydown="if(event.key==='Enter')acEnter()"></div>
+        </div>
         <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
         <div class="sum"><h5>預約摘要</h5><div id="sum"></div></div>
         <div class="cta"><button class="btn" id="b-submit" onclick="submitBooking()">確認預約</button></div>
@@ -594,64 +598,90 @@ function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
 var DIR_REFRESH_MS = 120000;
 function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); } if (cb) cb(); }); }
-function dirSearch(q) {
-  var qid = q.toUpperCase(), out = [];
-  for (var i = 0; i < S.dir.length && out.length < 10; i++) {
-    var x = S.dir[i];
-    if (x.n.indexOf(q) >= 0 || (qid.length >= 4 && x.p.indexOf(qid) === 0)) out.push({ pid: x.p, pidMasked: mask(x.p), name: x.n, lastDate: x.d, lastClinic: x.c, lastDoctor: x.dr, bound: x.b, source: x.s, phone: x.ph || '' });
+// 四欄連動：姓名／身分證／出生年月日／電話 任一欄輸入 → 在本機目錄（病人主檔 ∪ LINE 綁定）比對，點選後四欄一起帶出；同院區就診過者排前面
+var AC_MIN = { name: 1, pid: 3, birth: 3, phone: 4 };
+function dirRec(x) { return { pid: x.p, pidMasked: mask(x.p), name: x.n, lastDate: x.d, lastClinic: x.c, lastDoctor: x.dr, bound: x.b, source: x.s, phone: x.ph || '', birth: x.bd || '' }; }
+function dirSearch(q, field) {
+  if (!S.dir) return [];
+  field = field || 'name'; var out = [], qs = q.trim(), qid = qs.toUpperCase(), qd = qs.replace(/\D/g, ''), here = clinicName().replace(/院區$/, '');
+  for (var i = 0; i < S.dir.length && out.length < 12; i++) {
+    var x = S.dir[i], hit = false;
+    if (field === 'name') hit = x.n.indexOf(qs) >= 0 || (qid.length >= 4 && x.p.indexOf(qid) === 0);
+    else if (field === 'pid') hit = x.p.indexOf(qid) === 0;
+    else if (field === 'birth') hit = !!qd && String(x.bd || '').replace(/\D/g, '').indexOf(qd) === 0;
+    else if (field === 'phone') hit = !!qd && String(x.ph || '').indexOf(qd) >= 0;
+    if (hit) out.push(dirRec(x));
   }
-  out.sort(function(a, b){ return (b.name === q) - (a.name === q) || String(b.lastDate).localeCompare(String(a.lastDate)); });
+  out.sort(function(a, b){ return (b.name === qs) - (a.name === qs) || (b.lastClinic === here) - (a.lastClinic === here) || String(b.lastDate).localeCompare(String(a.lastDate)); });
   return out;
 }
-function acInput(v) {
-  clearTimeout(S.acTimer); S.bound = null; pidHint();
-  var typed = v.trim();
-  if (typed.length < 1) { acHide(); return; }
-  if (S.dir) { acShow(typed, dirSearch(typed)); return; } // 本機快取 → 即時
+function acInput(field, v) {
+  clearTimeout(S.acTimer); if (field === 'name' || field === 'pid') { S.bound = null; pidHint(); }
+  var typed = String(v || '').trim(); S.acField = field;
+  if (typed.length < (AC_MIN[field] || 1)) { acHide(); return; }
+  if (S.dir) { acShow(typed, dirSearch(typed, field), field); return; } // 本機快取 → 即時
+  if (field !== 'name' && field !== 'pid') { acHide(); return; }
   S.acTimer = setTimeout(function() {
     get({ action:'searchPatient', q:typed }, function(d) {
       if (d.error || !d.list) return;
-      if (document.getElementById('b-name').value.trim() !== typed) return; // 輸入已變，忽略舊結果
-      acShow(typed, d.list);
+      var el = document.getElementById(field === 'pid' ? 'b-pid' : 'b-name'); if (!el || el.value.trim() !== typed) return; // 輸入已變，忽略舊結果
+      acShow(typed, d.list, field);
     });
   }, 150);
 }
-function acShow(typed, list) {
+function acShow(typed, list, field) {
   S.acList = list; var box = document.getElementById('acl');
   if (!list.length) { acHide(); return; }
-  // 姓名完全相同且只有一人 → 直接帶入身分證
-  var exact = list.filter(function(p){ return p.name === typed; });
-  if (exact.length === 1 && document.getElementById('b-pid').value.length < 10) { acPick(list.indexOf(exact[0])); toast('已依歷史紀錄帶入 ' + exact[0].name + ' 的身分證（' + exact[0].pidMasked + '）', 'ok'); return; }
-  box.innerHTML = '<div class="h">歷史預約 / LINE 綁定紀錄' + (exact.length > 1 ? '（同名 ' + exact.length + ' 人，請核對身分證）' : '') + '，點選自動帶入</div>' + list.map(function(p, i) {
+  // 掛到目前輸入的欄位下方
+  var host = { name:'b-name', pid:'b-pid', birth:'b-birth', phone:'b-phone' }[field] || 'b-name'; var wrap = document.getElementById(host).closest('.fld'); if (wrap && box.parentNode !== wrap) wrap.appendChild(box);
+  // 唯一且完全吻合 → 直接帶入四欄
+  var qd = typed.replace(/\D/g, '');
+  var exact = list.filter(function(p){ return field === 'name' ? p.name === typed : field === 'pid' ? p.pid === typed.toUpperCase() : field === 'birth' ? (qd.length === 7 && String(p.birth).replace(/\D/g, '') === qd) : (qd.length >= 9 && p.phone === qd); });
+  var pidEl = document.getElementById('b-pid');
+  if (exact.length === 1 && (field !== 'name' || pidEl.value.length < 10)) { acPick(list.indexOf(exact[0])); toast('已依歷史紀錄帶入 ' + exact[0].name + '（' + exact[0].pidMasked + '）', 'ok'); return; }
+  var here = clinicName().replace(/院區$/, '');
+  box.innerHTML = '<div class="h">' + (here ? here + '院區就診過 / ' : '') + '歷史預約 / LINE 綁定紀錄' + (exact.length > 1 ? '（' + exact.length + ' 筆相同，請核對）' : '') + '，點選自動帶入四欄</div>' + list.map(function(p, i) {
     var dt = p.lastDate ? String(p.lastDate).slice(5).replace('-', '/') : '';
     var where = (p.lastClinic ? esc(p.lastClinic) + '院區' : '') + (p.lastDoctor ? ' ' + esc(p.lastDoctor) : '');
-    return '<div class="aci" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (dt ? ' · ' + dt : '') + '</div></div>';
+    var extra = (p.birth ? '<span class="pid">· ' + esc(p.birth) + '</span>' : '') + (p.phone ? '<span class="pid">· ' + esc(fmtPhone(p.phone)) + '</span>' : '');
+    return '<div class="aci' + (p.lastClinic && p.lastClinic === here ? ' here' : '') + '" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + extra + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (dt ? ' · ' + dt : '') + '</div></div>';
   }).join('');
   box.classList.remove('hidden');
 }
 function acEnter() { if (S.acList && S.acList.length === 1 && !document.getElementById('acl').classList.contains('hidden')) acPick(0); }
-function acPick(i) { var p = S.acList[i]; if (!p) return; document.getElementById('b-name').value = p.name; document.getElementById('b-pid').value = p.pid; if (p.phone && !document.getElementById('b-phone').value) document.getElementById('b-phone').value = p.phone; S.bound = p.bound; pidHint(); acHide(); renderSummary(); }
-function acHide() { document.getElementById('acl').classList.add('hidden'); }
+function acPick(i) {
+  var p = S.acList[i]; if (!p) return;
+  document.getElementById('b-name').value = p.name; document.getElementById('b-pid').value = p.pid;
+  if (p.birth) document.getElementById('b-birth').value = p.birth;
+  if (p.phone) document.getElementById('b-phone').value = p.phone;
+  S.bound = p.bound; pidHint(); acHide(); renderSummary();
+}
+function acHide() { var b = document.getElementById('acl'); if (b) b.classList.add('hidden'); }
+// 離開欄位時延遲收起；若焦點已移到另一個連動欄位且清單是那欄的，就不收（避免 Tab 切欄時把新清單關掉）
+function acBlur() { setTimeout(function(){ var a = document.activeElement; if (a && /^b-(name|pid|birth|phone)$/.test(a.id) && S.acField === a.id.slice(2)) return; acHide(); }, 180); }
 function pidLookup() {
   var pid = document.getElementById('b-pid').value.trim();
   if (pid.length < 4) return toast('請至少輸入身分證前 4 碼', 'err');
-  if (S.dir) { var hitL = dirSearch(pid).filter(function(p){ return p.pid === pid; })[0] || (dirSearch(pid).length === 1 ? dirSearch(pid)[0] : null);
-    if (hitL) { document.getElementById('b-name').value = hitL.name; document.getElementById('b-pid').value = hitL.pid; if (hitL.phone && !document.getElementById('b-phone').value) document.getElementById('b-phone').value = hitL.phone; S.bound = hitL.bound; pidHint(); renderSummary(); toast('已帶入 ' + hitL.name, 'ok'); return; } }
+  if (S.dir) { var l = dirSearch(pid, 'pid'); var hitL = l.filter(function(p){ return p.pid === pid; })[0] || (l.length === 1 ? l[0] : null);
+    if (hitL) { S.acList = [hitL]; acPick(0); toast('已帶入 ' + hitL.name, 'ok'); return; } }
   get({ action:'searchPatient', q:pid }, function(d) {
     if (d.error) return toast(d.error, 'err');
     var hit = d.list.filter(function(p){ return p.pid === pid; })[0] || (d.list.length === 1 ? d.list[0] : null);
     if (!hit) { S.bound = null; pidHint(); return toast('查無此身分證的歷史紀錄，請直接輸入姓名', ''); }
-    document.getElementById('b-name').value = hit.name; document.getElementById('b-pid').value = hit.pid; S.bound = hit.bound; pidHint(); renderSummary();
-    toast('已帶入 ' + hit.name, 'ok');
+    S.acList = [hit]; acPick(0); toast('已帶入 ' + hit.name, 'ok');
   });
 }
-function pidAuto() { // 身分證輸入完整 10 碼 → 從目錄帶姓名／電話／綁定狀態
-  var pid = document.getElementById('b-pid').value; if (pid.length !== 10 || !S.dir) return;
-  var hit = dirSearch(pid).filter(function(x){ return x.pid === pid; })[0]; if (!hit) return;
-  if (!document.getElementById('b-name').value.trim()) document.getElementById('b-name').value = hit.name;
-  if (hit.phone && !document.getElementById('b-phone').value) document.getElementById('b-phone').value = hit.phone;
-  S.bound = hit.bound; pidHint(); renderSummary();
+// 生日輸入整理：68/9/13、680913、0680913 → 068/09/13（民國）
+function normBirth(v) {
+  var s = String(v || '').trim(); if (!s) return '';
+  var y, m, d, parts = s.split(/[\/\-\.\s]+/).filter(Boolean);
+  if (parts.length === 3) { y = +parts[0]; m = +parts[1]; d = +parts[2]; }
+  else { var dg = s.replace(/\D/g, ''); if (dg.length === 8) { y = +dg.slice(0, 4); m = +dg.slice(4, 6); d = +dg.slice(6); } else if (dg.length === 7) { y = +dg.slice(0, 3); m = +dg.slice(3, 5); d = +dg.slice(5); } else if (dg.length === 6) { y = +dg.slice(0, 2); m = +dg.slice(2, 4); d = +dg.slice(4); } else return ''; }
+  if (y > 1911) y -= 1911;
+  if (!(y >= 1 && y <= 200 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return '';
+  return (y < 10 ? '00' : y < 100 ? '0' : '') + y + '/' + p2(m) + '/' + p2(d);
 }
+function birthTidy() { var el = document.getElementById('b-birth'); if (!el.value.trim()) return; var n = normBirth(el.value); if (n) el.value = n; else toast('出生年月日格式不正確，請以民國年輸入，例：068/09/13', 'err'); }
 function pidHint() {
   var v = document.getElementById('b-pid').value, h = document.getElementById('pid-hint');
   if (v.length === 10 && !/^[A-Z][A-D0-9]\d{8}$/.test(v)) { h.innerHTML = '<span style="color:var(--red)">身分證格式不正確</span>'; return; }
@@ -668,6 +698,7 @@ function submitBooking() {
             name:document.getElementById('b-name').value.trim(), pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim(), phone:document.getElementById('b-phone').value.trim() };
   if (!p.clinicCode) return toast('請選擇院區', 'err');
   if (p.phone && !/^\d{7,12}$/.test(p.phone)) return toast('電話號碼格式不正確', 'err');
+  var bRaw = document.getElementById('b-birth').value.trim(); if (bRaw) { p.birth = normBirth(bRaw); if (!p.birth) return toast('出生年月日格式不正確，請以民國年輸入，例：068/09/13', 'err'); document.getElementById('b-birth').value = p.birth; }
   if (!p.date) return toast('請選擇日期', 'err');
   if (!p.slot) return toast('請選擇時段', 'err');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(p.pid)) return toast('身分證字號格式不正確', 'err');
@@ -687,7 +718,7 @@ function submitBooking() {
   }, document.getElementById('b-submit'));
 }
 function resetForm() {
-  ['b-name', 'b-pid', 'b-note', 'b-phone'].forEach(function(id){ var el = document.getElementById(id); el.value = ''; el.defaultValue = ''; });
+  ['b-name', 'b-pid', 'b-note', 'b-phone', 'b-birth'].forEach(function(id){ var el = document.getElementById(id); el.value = ''; el.defaultValue = ''; });
   acHide(); S.acList = []; S.bound = null; pidHint(); S.slot = ''; S.slotLabel = '';
   document.querySelectorAll('.slot.on').forEach(function(x){ x.classList.remove('on'); x.querySelector('small').textContent = x.dataset.c; });
   renderSummary();
@@ -796,7 +827,7 @@ function openDetail(i) {
   if (b.status === '已報到') acts += '<button class="btn sec" onclick="opCheck(' + i + ',true);closeModal()">取消報到</button>';
   if (cancelled) acts += '<button class="btn sec" onclick="opRestore(' + i + ')">復原預約</button> <button class="btn" onclick="fillFrom(' + i + ')">候補遞補</button>';
   openModal('<h3>' + esc(b.name) + '　<span style="font-size:14px;color:var(--mut);font-weight:400">' + b.id + '</span></h3>' +
-    '<div class="kv">' + kv('院區', esc(b.clinicName) + '院區') + kv('日期時段', b.date + '　' + b.slot) + kv('醫師', esc(b.doctor)) + kv('身分證', b.pidMasked) + kv('電話', b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(fmtPhone(b.phone)) + '</a>' : '') + kv('方式', b.type) + kv('狀態', b.status) +
+    '<div class="kv">' + kv('院區', esc(b.clinicName) + '院區') + kv('日期時段', b.date + '　' + b.slot) + kv('醫師', esc(b.doctor)) + kv('身分證', b.pidMasked) + kv('出生年月日', b.birth ? esc(b.birth) + '（民國）' : '') + kv('電話', b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(fmtPhone(b.phone)) + '</a>' : '') + kv('方式', b.type) + kv('狀態', b.status) +
     kv('LINE', b.bound ? ((b.lineReply ? '回覆：' + b.lineReply + ' ' + (b.lineReplyAt || '').slice(5) : (b.pushed ? '已提醒 ' + b.pushed.slice(5) + '，未回覆' : '已綁定，尚未提醒'))) : '未綁定') +
     kv('建立', esc(b.createdBy) + ' ' + b.created) + (b.checkedAt ? kv('報到', b.checkedAt.slice(5) + ' ' + esc(b.checkedBy)) : '') + (b.cancelAt ? kv('取消', b.cancelAt.slice(5) + ' ' + esc(b.cancelBy)) : '') + kv('備註', esc(b.note)) + '</div>' +
     (b.phone ? '' : '<div class="note plain" style="margin-top:6px">此筆未留電話；可按「修改」補登，或以院所掛號系統查詢。</div>') +
@@ -813,7 +844,8 @@ function openEdit(i) {
     '<div class="fld"><label>時段 <span id="e-cap" style="color:var(--mut);font-size:13px"></span></label><div id="e-slots" class="eslots"><div class="empty" style="padding:14px 0">載入中…</div></div></div>' +
     '<div class="grid2"><div class="fld"><label>醫師</label><select id="e-doctor"><option value="不指定醫師">不指定醫師</option>' + docs.map(function(n){ return '<option' + (n === b.doctor ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>方式</label><div class="seg" style="margin:0;grid-template-columns:1fr 1fr" id="e-type"><button class="' + (b.type === '電話預約' ? 'on' : '') + '" onclick="editType(\'電話預約\',this)" style="padding:12px;font-size:15px">電話預約</button><button class="' + (b.type === '回診預約' ? 'on' : '') + '" onclick="editType(\'回診預約\',this)" style="padding:12px;font-size:15px">回診預約</button></div></div></div>' +
-    '<div class="grid2"><div class="fld"><label>電話</label><input id="e-phone" type="tel" inputmode="numeric" maxlength="12" value="' + esc(b.phone || '') + '" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div><div class="fld"><label>備註</label><input id="e-note" value="' + esc(b.note) + '"></div></div>' +
+    '<div class="grid2"><div class="fld"><label>電話</label><input id="e-phone" type="tel" inputmode="numeric" maxlength="12" value="' + esc(b.phone || '') + '" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div><div class="fld"><label>出生年月日（民國）</label><input id="e-birth" inputmode="numeric" maxlength="10" placeholder="068/09/13" value="' + esc(b.birth || '') + '" oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')"></div></div>' +
+    '<div class="fld"><label>備註</label><input id="e-note" value="' + esc(b.note) + '"></div>' +
     '<div class="note plain" id="e-msg" style="display:none"></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn sec" onclick="closeModal()">放棄</button><button class="btn" id="e-save" onclick="saveEdit()">儲存修改</button></div>');
   editLoadSlots();
@@ -842,7 +874,7 @@ function editPick(key, full, cnt, cap) {
 }
 function saveEdit() {
   var b = S.edit.b; if (!S.edit.slot) return toast('請選擇時段', 'err');
-  get({ action:'updateBooking', id:b.id, date:S.edit.date, slot:S.edit.slot, doctor:document.getElementById('e-doctor').value, type:S.edit.type, note:document.getElementById('e-note').value.trim(), phone:document.getElementById('e-phone').value.trim() }, function(d) {
+  get({ action:'updateBooking', id:b.id, date:S.edit.date, slot:S.edit.slot, doctor:document.getElementById('e-doctor').value, type:S.edit.type, note:document.getElementById('e-note').value.trim(), phone:document.getElementById('e-phone').value.trim(), birth:document.getElementById('e-birth').value.trim() }, function(d) {
     if (d.error) { var msg = document.getElementById('e-msg'); msg.style.display = 'block'; msg.style.color = 'var(--red)'; msg.innerHTML = '⚠️ ' + esc(d.error); if (d.full) editLoadSlots(); return; }
     toast('已修改' + (d.moved ? '，LINE 提醒將依新時段重新發送' : ''), 'ok'); closeModal(); loadList();
   }, document.getElementById('e-save'));
