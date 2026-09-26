@@ -386,6 +386,8 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
 // ==================== 設定 ====================
 var API = 'https://script.google.com/macros/s/AKfycby0VcU__CbiQqa0sM_q_iXc5BwWS4Wb00ivQiOprhapTYWauxu8M0xvG08hXtgDudBIXQ/exec';
 var LS_KEY = 'eliteBookingUser';
+// 憑證只放 sessionStorage（僅限這個分頁、關閉分頁即失效）：同一班次按 F5 不用重登，但關掉瀏覧器或登出後一定要手動輸入帳密，不做跨日自動登入
+var STORE = (function(){ try { return window.sessionStorage; } catch (e) { return null; } })();
 var WD = ['日','一','二','三','四','五','六'];
 
 var S = { token:'', user:null, clinics:[], doctors:[], settings:{}, today:'', date:'', calY:0, calM:0, type:'電話預約', slot:'', slotLabel:'', list:[], view:[], acTimer:null, acList:[], docList:[], bound:null };
@@ -413,7 +415,8 @@ function get(params, cb, btn, opts) {
     try { d = JSON.parse(t); }
     catch (e) { throw new Error(/無法開啟這個檔案|Sorry, unable/.test(t) ? '後端尚未完成授權：請在 Apps Script 編輯器執行一次 setupSheets 完成授權，再「新版本」重新部署' : '後端回傳的不是 JSON（可能是登入頁或錯誤頁），請檢查部署存取權是否為「所有人」'); }
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
-    S.lastMs = Date.now() - t0; S.lastSrvMs = d && d._ms; // 除錯用：總耗時 vs 伺服器處理時間（差值＝網路／Apps Script 排隊）
+    S.lastMs = Date.now() - t0; S.lastSrvMs = d && d._ms;
+ // 除錯用：總耗時 vs 伺服器處理時間（差值＝網路／Apps Script 排隊）
     if (window.console && console.debug) console.debug('[API] ' + params.action + ' ' + S.lastMs + 'ms（伺服器 ' + (d && d._ms != null ? d._ms : '?') + 'ms）');
     if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
     cb(d);
@@ -435,7 +438,7 @@ function doLogin() {
   get({ action:'login', empId:id, pwd:pw }, function(d) {
     if (d.error) { err.textContent = d.error; btn.disabled = false; btn.textContent = '登入'; return; }
     S.token = d.token; S.user = d.user;
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ token:d.token, user:d.user, at:Date.now() })); } catch (e) {}
+    try { STORE && STORE.setItem(LS_KEY, JSON.stringify({ token:d.token, user:d.user, at:Date.now() })); } catch (e) {}
     btn.innerHTML = '<span class="spin"></span> 載入資料…';
     enterApp(d.init && d.init.success ? d.init : null, function(){ btn.disabled = false; btn.textContent = '登入'; });
   });
@@ -444,7 +447,8 @@ document.getElementById('l-pw').addEventListener('keydown', function(e){ if (e.k
 
 function logout() {
   stopListPoll(); if (S._dirTimer) { clearInterval(S._dirTimer); S._dirTimer = null; }
-  try { localStorage.removeItem(LS_KEY); } catch (e) {}
+  if (S.token) { var tk = S.token; try { fetch(API + '?action=logout&token=' + encodeURIComponent(tk), { keepalive: true }); } catch (e) {} } // 後端作廢憑證（不等回應）
+  try { STORE && STORE.removeItem(LS_KEY); localStorage.removeItem(LS_KEY); } catch (e) {} // 也清掉舊版留在 localStorage 的憑證
   S.token = ''; S.user = null; S.dir = null; S.slotCache = {};
   resetLoginForm(true);
   document.getElementById('app').classList.add('hidden');
@@ -473,6 +477,8 @@ function enterApp(preloaded, onFail) {
     stPreset(7);
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    // 登入回應若帶了 14 天時段預載，先塞進本機快取 → onClinicChange 直接用，不再打 API
+    if (d.range && d.range.dates) { var now0 = Date.now(); Object.keys(d.range.dates).forEach(function(dt){ var x = d.range.dates[dt]; x.success = true; S.slotCache[d.range.clinicCode + '|' + dt] = { d: x, at: now0 }; }); }
     renderCal(); onClinicChange(); startListPoll();
     resetLoginForm(true); // 進入系統後把登入表單歸零，之後登出看到的是乾淨的登入頁
     loadDirectory(); if (!S._dirTimer) S._dirTimer = setInterval(function(){ if (!document.hidden) loadDirectory(); }, DIR_REFRESH_MS);
@@ -494,10 +500,11 @@ function fillClinicSelects() {
 // 自動登入
 (function autoLogin() {
   try {
-    var raw = localStorage.getItem(LS_KEY); if (!raw) return;
-    var o = JSON.parse(raw); if (!o.token || Date.now() - o.at > 6 * 3600 * 1000) { localStorage.removeItem(LS_KEY); return; }
+    try { localStorage.removeItem(LS_KEY); } catch (e) {} // 舊版跨日自動登入已停用：清掉殘留
+    var raw = STORE ? STORE.getItem(LS_KEY) : null; if (!raw) return; // 只在同一分頁重新整理時還原（同班次）
+    var o = JSON.parse(raw); if (!o.token || Date.now() - o.at > 12 * 3600e3) { STORE.removeItem(LS_KEY); return; }
     S.token = o.token; S.user = o.user;
-    var btn = document.getElementById('l-btn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 自動登入中…';
+    var btn = document.getElementById('l-btn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 恢復登入狀態…';
     document.getElementById('l-id').value = o.user && o.user.empId || '';
     enterApp(null, function(){ resetLoginForm(false); });
   } catch (e) {}
@@ -588,8 +595,9 @@ function dateTxt(k) { if (!k) return ''; var d = new Date(k + 'T00:00:00'); retu
 // ==================== STEP 3 時段 ====================
 // 今天且時段結束時間已過 → 已過時段（不可預約）；時段進行中仍可預約（現場補掛）
 function slotPassed(date, endMin) { if (date < S.today) return true; if (date > S.today) return false; var n = new Date(); return n.getHours() * 60 + n.getMinutes() >= endMin; }
-// 時段快取：同院區同日期 60 秒內先用快取立即畫出，背景再向伺服器要最新資料更新（切換日期來回不用等）
-var SLOT_CACHE_MS = 60000, _slotSeq = 0, _slotTick = null;
+// 時段資料：一次向伺服器預載該院區 14 天（getSlotsRange），之後切日期直接用本機資料、零等待；
+// 快取超過 SLOT_STALE_MS 才在背景靜默更新；預約成功會直接改本機資料再背景校正
+var SLOT_CACHE_MS = 10 * 60000, SLOT_STALE_MS = 30000, RANGE_DAYS = 14, _slotSeq = 0, _slotTick = null, _rangeBusy = {};
 S.slotCache = {};
 function loadSlots() {
   var code = document.getElementById('b-clinic').value;
@@ -597,22 +605,33 @@ function loadSlots() {
   document.getElementById('sl-title').textContent = clinicName() + ' · ' + dateTxt(S.date);
   if (_slotTick) { clearInterval(_slotTick); _slotTick = null; }
   if (!code || !S.date) { document.getElementById('slots').innerHTML = '<div class="empty">請先選擇院區與日期</div>'; return; }
-  var seq = ++_slotSeq, ck = code + '|' + S.date, cached = S.slotCache[ck];
-  if (cached && Date.now() - cached.at < SLOT_CACHE_MS) { S.schedKey = ck; renderSlots(cached.d, true); }
-  else {
-    // 先用本機設定（開診／關診／休診／上限）立刻畫出時段格，人數等伺服器回來再填；格子可先點選，送出時後端仍會檢核額滿
-    var sk = localSlots(code); if (sk) renderSlots(sk, true); else document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span class="sl-sec"></span></div>';
-    var t0 = Date.now();
-    _slotTick = setInterval(function(){ var sec = Math.round((Date.now() - t0) / 1000) + ' 秒'; document.querySelectorAll('.sl-sec').forEach(function(el){ el.textContent = sec; }); }, 1000);
+  var seq = ++_slotSeq, ck = code + '|' + S.date, cached = S.slotCache[ck], age = cached ? Date.now() - cached.at : Infinity;
+  if (cached && age < SLOT_CACHE_MS) {
+    S.schedKey = ck; renderSlots(cached.d, true);                 // 本機有資料 → 立即顯示
+    if (age > SLOT_STALE_MS) fetchRange(code, S.date, seq, true);  // 太舊才背景更新
+    return;
   }
-  var fromCache = !!(cached && Date.now() - cached.at < SLOT_CACHE_MS);
-  get({ action:'getSlots', clinicCode:code, date:S.date }, function(d) {
-    if (seq !== _slotSeq) return; // 使用者已改選別的院區／日期，忽略舊回應
+  // 沒資料：先用本機設定畫出時段骨架（可先點選），同時預載 14 天
+  var sk = localSlots(code); if (sk) renderSlots(sk, true); else document.getElementById('slots').innerHTML = '<div class="empty">載入中… <span class="sl-sec"></span></div>';
+  var t0 = Date.now();
+  _slotTick = setInterval(function(){ var sec = Math.round((Date.now() - t0) / 1000) + ' 秒'; document.querySelectorAll('.sl-sec').forEach(function(el){ el.textContent = sec; }); }, 1000);
+  fetchRange(code, S.date, seq, false);
+}
+// 預載視窗：以所選日期為準，從 max(今天, 日期-3天) 起 14 天
+function fetchRange(code, date, seq, silent) {
+  var from = date; var d3 = new Date(date + 'T00:00:00'); d3.setDate(d3.getDate() - 3); var f3 = ymd(d3); from = f3 > S.today ? f3 : S.today;
+  var key = code + '|' + from; if (_rangeBusy[key] && Date.now() - _rangeBusy[key] < 45000) return; _rangeBusy[key] = Date.now(); // 45 秒內同一視窗不重複請求（失敗也會自動解鎖）
+  get({ action:'getSlotsRange', clinicCode:code, from:from, days:RANGE_DAYS }, function(d) {
+    _rangeBusy[key] = 0;
+    if (d.error) { if (seq === _slotSeq && !silent) { if (_slotTick) { clearInterval(_slotTick); _slotTick = null; } document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; } return; }
+    var now = Date.now();
+    Object.keys(d.dates || {}).forEach(function(dt){ var x = d.dates[dt]; x.success = true; S.slotCache[code + '|' + dt] = { d: x, at: now }; });
+    // 不看 seq：只要目前選的院區仍相同且視窗涵蓋目前日期，就用新資料重畫（使用者在等待期間切了日期也能立刻補上）
+    if (document.getElementById('b-clinic').value !== code) return;
+    var ck = code + '|' + S.date, cur = S.slotCache[ck]; if (!cur) return;
     if (_slotTick) { clearInterval(_slotTick); _slotTick = null; }
-    if (d.error) { document.getElementById('slots').innerHTML = '<div class="empty">' + esc(d.error) + '</div>'; return; }
-    S.slotCache[ck] = { d: d, at: Date.now() };
-    S.schedKey = ck; renderSlots(d, false);
-  }, null, { silent: fromCache }); // 已有快取畫面時，背景更新失敗不打擾
+    S.schedKey = ck; renderSlots(cur.d, false);
+  }, null, { silent: !!silent });
 }
 // 依登入時取得的設定在本機產生時段骨架（count=null 表示人數尚未載入）
 function localSlots(code) {
