@@ -424,6 +424,7 @@ function get(params, cb, btn, opts) {
     clearTimeout(timer); _listBusy = false;
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
     S.netErrAt = Date.now(); var live = document.getElementById('li-live');
+    if (e.name === 'AbortError' && opts.onTimeout) { opts.onTimeout(); return; }
     if (opts.silent) { if (live) live.textContent = '● 連線不穩，稍後自動重試（' + (e.name === 'AbortError' ? '逾時' : '失敗') + '）'; if (window.console) console.warn('[API] ' + params.action + ' 背景更新失敗：' + e.message); return; }
     toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
   });
@@ -802,6 +803,7 @@ function submitBooking() {
   if (!p.slot) return toast('請選擇時段', 'err');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(p.pid)) return toast('身分證字號格式不正確', 'err');
   if (!p.name) return toast('請輸入姓名', 'err');
+  var slotLabel = S.slotLabel, clinicTxt = clinicName(); // 先記下，resetForm 之後會清掉
   get(p, function(d) {
     if (d.error) return toast(d.error, 'err');
     // 先把這筆直接寫進本機時段快取並立即重畫（不用等伺服器），背景再向伺服器要最新資料
@@ -812,9 +814,12 @@ function submitBooking() {
       ? '<div class="tag ok" style="font-size:14px;padding:8px 12px;white-space:normal">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— ' + (d.reminded ? '提醒已立即推播' : (d.remindReason && d.remindReason !== 'scheduled' ? '提醒發送失敗：' + esc(d.remindReason) : '看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒')) + '</div>'
       : '<div class="tag no" style="font-size:14px;padding:8px 12px">尚未綁定 LINE，無法推播提醒</div>' +
         (d.lineAddUrl ? '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(d.lineAddUrl) + '" alt="LINE QR"><div style="font-size:13px;color:var(--mut);margin-top:6px">請民眾掃描加入金鶯診所 LINE 並完成綁定（填寫姓名＋身分證）</div></div>' : '<div style="font-size:13px;color:var(--mut);margin-top:8px">請引導民眾加入金鶯診所 LINE 官方帳號並完成綁定。</div>');
-    openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + clinicName() + '</b><span>日期時段</span><b>' + dateTxt(p.date) + '　' + S.slotLabel + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
+    openModal('<h3>✅ 預約成功</h3><div class="kv"><span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + clinicTxt + '</b><span>日期時段</span><b>' + dateTxt(p.date) + '　' + slotLabel + '</b><span>醫師</span><b>' + esc(p.doctor) + '</b><span>民眾</span><b>' + esc(p.name) + '　' + mask(p.pid) + '</b><span>方式</span><b>' + p.type + '</b></div>' + line +
       '<div style="display:flex;justify-content:flex-end;margin-top:18px"><button class="btn" onclick="closeModal();document.getElementById(\'b-name\').focus()">完成，輸入下一位</button></div>');
-  }, document.getElementById('b-submit'));
+  }, document.getElementById('b-submit'), { onTimeout: function() {
+    // 逾時不代表沒成功（伺服器可能已寫入）：提示到名單確認，避免重複預約
+    openModal('<h3>⏳ 伺服器回應逾時</h3><p style="line-height:1.7">這筆預約<b>可能已經成立</b>，請先到「每日名單」查看 ' + esc(dateTxt(p.date)) + ' 是否已有 <b>' + esc(p.name) + '</b>，確認沒有再重送，以免重複預約。</p><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px"><button class="btn ghost" onclick="closeModal()">關閉</button><button class="btn" onclick="closeModal();document.getElementById(\'li-date\').value=\'' + p.date + '\';showView(\'list\')">去每日名單確認</button></div>');
+  } });
 }
 // 一鍵清空：只清民眾資料（姓名／身分證／生日／電話／備註），院區、日期、時段、預約方式保留，直接換下一位
 function clearPatient() {
