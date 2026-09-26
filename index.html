@@ -127,6 +127,9 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .aci{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:16px;border-top:1px solid var(--line2)}
 .sched{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:-6px 0 10px;font-size:13px}.sched .lb{color:var(--mut);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px}.sched .dr{color:var(--tx);font-weight:600}.sched .dr small{color:var(--mut);font-weight:400;margin-left:2px}.sched .dr.chg{color:var(--red)}.sched .dr.chg small{color:var(--red)}.sched .dr.none{color:var(--mut);font-weight:400}
 .schedsrc{font-size:12px;color:var(--mut);margin:4px 0 12px}.schedsrc.none{color:#b08a2e}.schedsrc.est{color:#7a6a2a;background:#fbf6e6;border-radius:8px;padding:6px 10px}
+.perf{font-size:11px;color:rgba(255,255,255,.55);margin-left:10px;cursor:pointer;white-space:nowrap;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.18)}.perf:hover{color:#fff}.perf.slow{color:#ffd27a;border-color:#ffd27a}.perf.bad{color:#ff9c9c;border-color:#ff9c9c}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--tx);white-space:nowrap}
+.badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;line-height:18px;vertical-align:1px}
 .aci:hover{background:var(--teal-l)}.aci.here b::after{content:'本院區';font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:6px;padding:0 5px;margin-left:6px;font-weight:500;vertical-align:1px}
 .aci b{font-weight:700}.aci .pid{color:var(--mut);margin-left:6px;font-size:15px}
 .aci .r{font-size:13px;color:var(--mut);white-space:nowrap}.aci .r .ok{color:var(--teal);font-weight:500}
@@ -255,11 +258,12 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <nav>
     <button class="on" data-v="book" onclick="showView('book')">新增預約</button>
     <button data-v="list" onclick="showView('list')">每日名單</button>
+    <button data-v="pend" onclick="showView('pend')">待排回診<span class="badge hidden" id="pend-badge">0</span></button>
     <button data-v="stats" onclick="showView('stats')">後台統計</button>
     <button data-v="doc" onclick="showView('doc')">醫師名單</button>
   </nav>
   <div class="hr">
-    <div class="clock" id="clock"></div>
+    <div class="clock" id="clock"></div><div class="perf" id="perf" title="最近一次連線耗時，點擊看明細" onclick="showPerf()"></div>
     <div class="who"><div class="avatar" id="u-av"></div><div class="txt"><span id="u-name"></span><span class="role"><span class="sep">·</span><span id="u-title"></span></span><span class="sep">·</span><span id="u-clinic"></span></div><a href="#" onclick="logout();return false">登出</a></div>
   </div>
 </div></header>
@@ -335,6 +339,18 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   </section>
 
   <!-- ---------- 統計 ---------- -->
+  <section id="v-pend" class="hidden">
+    <div class="card">
+      <h2>待排回診 <span class="sub">展望看診系統開立「back」醫令後自動送入；請電洽民眾排入預約</span></h2>
+      <div class="bar">
+        <select id="pd-clinic" onchange="loadPending()"></select>
+        <label class="chk" style="margin-left:8px"><input type="checkbox" id="pd-all" onchange="loadPending()"> 含已排／已略過／已撤銷</label>
+        <button class="btn sm sec" style="margin-left:auto" onclick="loadPending()">重新整理</button>
+      </div>
+      <div class="tw"><table class="lt"><thead><tr><th id="pd-th-clinic" class="hidden">院區</th><th>建議回診日</th><th>姓名</th><th>身分證</th><th>出生年月日</th><th>電話</th><th>開單醫師</th><th>看診日 / 開單</th><th>備註</th><th>LINE</th><th>狀態</th><th>操作</th></tr></thead><tbody id="pd-body"></tbody></table></div>
+      <div class="lfoot"><span>建議回診日已過者以紅色標示；沒有建議日（展望未帶天數）者請依醫囑安排。</span><span class="r" id="pd-count"></span></div>
+    </div>
+  </section>
   <section id="v-stats" class="hidden stack">
     <div class="card">
       <h2>報到統計</h2>
@@ -418,6 +434,7 @@ function get(params, cb, btn, opts) {
     S.lastMs = Date.now() - t0; S.lastSrvMs = d && d._ms;
  // 除錯用：總耗時 vs 伺服器處理時間（差值＝網路／Apps Script 排隊）
     if (window.console && console.debug) console.debug('[API] ' + params.action + ' ' + S.lastMs + 'ms（伺服器 ' + (d && d._ms != null ? d._ms : '?') + 'ms）');
+    perfRecord(params.action, S.lastMs, d && d._ms, d && d.error);
     if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
     cb(d);
   }).catch(function(e) {
@@ -483,6 +500,7 @@ function enterApp(preloaded, onFail) {
     if (d.range && d.range.dates) { Object.keys(d.range.dates).forEach(function(dt){ var x = d.range.dates[dt]; x.success = true; S.slotCache[d.range.clinicCode + '|' + dt] = { d: x, at: now0 }; }); }
     // 今日名單也一併帶回 → 切到每日名單直接顯示（之後照常 10 秒版本輪詢）
     if (d.todayList && d.todayList.list) { var lk0 = (S.user.isAdmin ? '' : S.user.clinicCode) + '|' + S.today; S.listCache[lk0] = { list: d.todayList.list, now: d.todayList.now || '' }; S.listVer = d.todayList.ver || ''; S.listAt = now0; S.listPre = lk0; }
+    setPendBadge(d.pendingCount || 0);
     renderCal(); onClinicChange(); startListPoll();
     // 背景預熱：管理者一次把全部院區 14 天時段載回本機（切院區零等待）；再順手預載明天的名單
     setTimeout(function() {
@@ -504,9 +522,26 @@ function fillClinicSelects() {
   document.getElementById('li-clinic').innerHTML = all + opts;
   document.getElementById('st-clinic').innerHTML = all + opts;
   document.getElementById('dc-clinic').innerHTML = all + opts;
-  ['b-clinic','li-clinic','st-clinic','dc-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.user.isAdmin && S.clinics.length <= 1; });
+  document.getElementById('pd-clinic').innerHTML = all + opts; document.getElementById('pd-th-clinic').classList.toggle('hidden', !S.user.isAdmin);
+  ['b-clinic','li-clinic','st-clinic','dc-clinic','pd-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.user.isAdmin && S.clinics.length <= 1; });
 }
 
+// 效能記錄：頁首小字顯示最近一次連線耗時（總 / 伺服器），點擊看最近 20 筆，不必開開發者工具
+S.perfLog = [];
+function perfRecord(action, total, server, err) {
+  S.perfLog.unshift({ t: new Date(), a: action, total: total, server: server, err: err }); if (S.perfLog.length > 20) S.perfLog.pop();
+  var el = document.getElementById('perf'); if (!el) return;
+  var net = server != null ? total - server : null;
+  el.textContent = action + ' ' + (total / 1000).toFixed(1) + 's' + (server != null ? '（伺服器 ' + (server / 1000).toFixed(1) + 's）' : '');
+  el.className = 'perf' + (total > 8000 ? ' bad' : total > 3000 ? ' slow' : '');
+}
+function showPerf() {
+  var rows = S.perfLog.map(function(r){ return '<tr><td>' + p2(r.t.getHours()) + ':' + p2(r.t.getMinutes()) + ':' + p2(r.t.getSeconds()) + '</td><td>' + esc(r.a) + '</td><td style="text-align:right">' + r.total + '</td><td style="text-align:right">' + (r.server != null ? r.server : '—') + '</td><td style="text-align:right">' + (r.server != null ? r.total - r.server : '—') + '</td><td>' + (r.err ? esc(String(r.err)) : '') + '</td></tr>'; }).join('');
+  openModal('<h3>連線效能（最近 20 筆）</h3><p style="font-size:13px;color:var(--mut);line-height:1.6">總耗時＝從按下到收到回應；伺服器＝Apps Script 實際處理；差值＝網路與 Google 排隊（Apps Script 每次約 1.4 秒底限）。若「伺服器」很大＝後端要優化；若「差值」很大＝Google 端當時壅塞。</p>' +
+    '<div style="max-height:50vh;overflow:auto"><table class="tbl" style="font-size:13px"><thead><tr><th>時間</th><th>動作</th><th style="text-align:right">總 ms</th><th style="text-align:right">伺服器 ms</th><th style="text-align:right">差值 ms</th><th>錯誤</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" style="color:var(--mut)">尚無紀錄</td></tr>') + '</tbody></table></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button class="btn ghost" onclick="copyPerf()">複製明細</button><button class="btn" onclick="closeModal()">關閉</button></div>');
+}
+function copyPerf() { var txt = S.perfLog.map(function(r){ return [p2(r.t.getHours()) + ':' + p2(r.t.getMinutes()) + ':' + p2(r.t.getSeconds()), r.a, r.total, r.server != null ? r.server : '', r.err || ''].join('\t'); }).join('\n'); try { navigator.clipboard.writeText('時間\t動作\t總ms\t伺服器ms\t錯誤\n' + txt); toast('已複製，貼給我即可', 'ok'); } catch (e) { toast('複製失敗，請截圖', 'err'); } }
 // 預熱：登入頁一開就打一次 ping，讓 Apps Script 執行個體先醒著，按登入時少掉冷啟動
 (function warmUp() { try { fetch(API + '?action=ping&_=' + Date.now(), { keepalive: true }).catch(function(){}); } catch (e) {} })();
 // 自動登入
@@ -531,9 +566,9 @@ function fillClinicSelects() {
 
 // ==================== 視圖 ====================
 function showView(v) {
-  ['book','list','stats','doc'].forEach(function(k){ document.getElementById('v-' + k).classList.toggle('hidden', k !== v); });
+  ['book','list','pend','stats','doc'].forEach(function(k){ document.getElementById('v-' + k).classList.toggle('hidden', k !== v); });
   document.querySelectorAll('nav button').forEach(function(b){ b.classList.toggle('on', b.dataset.v === v); });
-  if (v === 'list') loadList(); if (v === 'stats') loadStats(); if (v === 'doc') loadDoctors();
+  if (v === 'list') loadList(); if (v === 'pend') loadPending(); if (v === 'stats') loadStats(); if (v === 'doc') loadDoctors();
 }
 
 // ==================== STEP 1 ====================
@@ -807,6 +842,7 @@ function renderSummary() {
 function submitBooking() {
   var p = { action:'createBooking', clinicCode:document.getElementById('b-clinic').value, date:S.date, slot:S.slot, doctor:document.getElementById('b-doctor').value,
             name:document.getElementById('b-name').value.trim(), pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim(), phone:document.getElementById('b-phone').value.trim() };
+  if (S.pendingOrder && S.pendingOrder.pid === p.pid) p.pendingId = S.pendingOrder.orderId; // 由待排回診排入 → 讓後端回寫「已排」
   if (!p.clinicCode) return toast('請選擇院區', 'err');
   if (p.phone && !/^\d{7,12}$/.test(p.phone)) return toast('電話號碼格式不正確', 'err');
   var bRaw = document.getElementById('b-birth').value.trim(); if (bRaw) { p.birth = normBirth(bRaw); if (!p.birth) return toast('出生年月日格式不正確，請以民國年輸入，例：068/09/13', 'err'); document.getElementById('b-birth').value = p.birth; }
@@ -820,6 +856,7 @@ function submitBooking() {
     // 先把這筆直接寫進本機時段快取並立即重畫（不用等伺服器），背景再向伺服器要最新資料
     var ck = p.clinicCode + '|' + p.date, c = S.slotCache[ck];
     if (c && c.d && c.d.slots) { c.d.slots.forEach(function(sl){ if (sl.key === p.slot) { sl.count = d.count != null ? d.count : sl.count + 1; (sl.people = sl.people || []).push({ n: p.name, d: p.doctor, st: '待報到', t: p.type === '回診預約' ? '回' : '電' }); } }); c.at = Date.now(); }
+    if (p.pendingId) { S.pendingOrder = null; setPendBadge(Math.max(0, (S.pendCount || 1) - 1)); toast('待排回診已轉為「已排」', 'ok'); }
     resetForm(); loadSlots(); loadDirectory(); // 先清空表單，避免下一位帶到上一位資料
     var line = d.bound
       ? '<div class="tag ok" style="font-size:14px;padding:8px 12px;white-space:normal">✓ 已綁定 LINE（' + esc(d.bindName || p.name) + '）— ' + (d.reminded ? '提醒已立即推播' : (d.remindReason && d.remindReason !== 'scheduled' ? '提醒發送失敗：' + esc(d.remindReason) : '看診前一天 ' + (S.settings.remindHour || 18) + ':00 自動推播提醒')) + '</div>'
@@ -1040,6 +1077,49 @@ function fillFrom(i) {
   showView('book'); renderCal(); onClinicChange();
   toast('已帶入 ' + b.clinicName + '院區 ' + b.date + ' ' + b.slot + '，請輸入遞補民眾資料', 'ok');
 }
+
+// ==================== 待排回診（展望 back 醫令） ====================
+function setPendBadge(n) { S.pendCount = n; var b = document.getElementById('pend-badge'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n); }
+function loadPending() {
+  var all = document.getElementById('pd-all').checked;
+  get({ action:'getPending', clinicCode:document.getElementById('pd-clinic').value, all: all ? '1' : '' }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    S.pend = d.list; if (!document.getElementById('pd-clinic').value) setPendBadge(d.count);
+    var admin = S.user.isAdmin;
+    document.getElementById('pd-body').innerHTML = d.list.map(function(o, i) {
+      var st = o.status === '待排' ? '<span class="tag amb">待排</span>' : o.status === '已排' ? '<span class="tag ok">已排</span>' : o.status === '已撤銷' ? '<span class="tag red">已撤銷</span>' : '<span class="tag no">' + esc(o.status) + '</span>';
+      var rd = o.returnDate ? '<b' + (o.overdue && o.status === '待排' ? ' style="color:var(--red)"' : '') + '>' + o.returnDate.replace(/-/g, '/') + '</b>' + (o.returnPeriod ? ' <small>' + esc(o.returnPeriod) + '</small>' : '') : '<span style="color:var(--mut)">未指定' + (o.returnDays ? '（' + esc(o.returnDays) + ' 天）' : '') + '</span>';
+      var ops = o.status === '待排' ? '<button class="btn sm" onclick="pendFill(' + i + ')">排入預約</button> <button class="btn sm sec" onclick="pendSkip(' + i + ')">略過</button>' : (o.status === '已略過' ? '<button class="btn sm sec" onclick="pendReopen(' + i + ')">恢復待排</button>' : (o.bookingId ? '<small>' + esc(o.bookingId) + '</small>' : ''));
+      return '<tr' + (o.status !== '待排' ? ' class="done"' : (o.overdue ? ' class="late"' : '')) + '>' + (admin ? '<td>' + esc(o.clinicName) + '</td>' : '') + '<td>' + rd + '</td><td><b>' + esc(o.name) + '</b>' + (o.chartNo ? '<br><small style="color:var(--mut)">病歷 ' + esc(o.chartNo) + '</small>' : '') + '</td><td>' + o.pidMasked + '</td><td>' + esc(o.birth) + '</td><td>' + (o.phone ? '<a href="tel:' + esc(o.phone) + '">' + esc(fmtPhone(o.phone)) + '</a>' : '') + '</td><td>' + esc(o.doctor) + '</td><td><small>' + esc(o.visitDate) + '<br>' + esc(o.orderedAt) + '</small></td><td><small>' + esc(o.note) + '</small></td><td>' + (o.bound ? '<span class="tag ok">已綁定</span>' : '<span class="tag no">未綁定</span>') + '</td><td>' + st + '</td><td>' + ops + '</td></tr>';
+    }).join('') || '<tr><td colspan="12" class="empty">目前沒有待排回診</td></tr>';
+    document.getElementById('pd-count').textContent = '待排 ' + d.count + ' 筆' + (all ? '（共列出 ' + d.list.length + ' 筆）' : '');
+  });
+}
+// 排入：帶院區／建議日／醫師／民眾四欄跳到新增預約，只剩選時段
+function pendFill(i) {
+  var o = S.pend[i]; if (!o) return;
+  var clinicOk = S.clinics.some(function(c){ return c.code === o.clinicCode; }); if (!clinicOk) return toast('此院區不在您的權限內', 'err');
+  document.getElementById('b-clinic').value = o.clinicCode;
+  var d = o.returnDate && o.returnDate >= S.today ? o.returnDate : S.today; S.date = d; var dd = new Date(d + 'T00:00:00'); S.calY = dd.getFullYear(); S.calM = dd.getMonth();
+  S.pendingDoctor = o.doctor; S.pendingOrder = { orderId: o.orderId, pid: o.pid };
+  showView('book'); renderCal(); onClinicChange();
+  document.getElementById('b-name').value = o.name; document.getElementById('b-pid').value = o.pid; document.getElementById('b-birth').value = o.birth || ''; document.getElementById('b-phone').value = o.phone || '';
+  document.getElementById('b-note').value = ('展望回診 ' + (o.note || '')).trim();
+  var tb = document.querySelectorAll('#b-type button')[1]; if (tb) setType('回診預約', tb);
+  S.bound = o.bound; pidHint(); renderSummary();
+  toast('已帶入 ' + o.name + ' 的回診資料，請選擇時段後確認', 'ok');
+}
+function pendSkip(i) {
+  var o = S.pend[i]; if (!o) return;
+  openModal('<h3>略過待排回診</h3><p style="line-height:1.7">' + esc(o.name) + '（' + o.pidMasked + '）' + esc(o.doctor) + ' 開立的回診。<br>請填寫略過原因（例：病人已自行預約、不需回診、聯絡不上）：</p><div class="fld"><input id="pd-reason" placeholder="略過原因"></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn" id="pd-skip-btn" onclick="pendSkipGo(\'' + esc(o.orderId) + '\')">確認略過</button></div>');
+  setTimeout(function(){ var el = document.getElementById('pd-reason'); if (el) el.focus(); }, 50);
+}
+function pendSkipGo(orderId) {
+  var reason = (document.getElementById('pd-reason').value || '').trim(); if (!reason) return toast('請填寫略過原因', 'err');
+  get({ action:'pendingAction', orderId: orderId, mode:'skip', reason: reason }, function(d){ if (d.error) return toast(d.error, 'err'); closeModal(); toast('已略過', 'ok'); loadPending(); }, document.getElementById('pd-skip-btn'));
+}
+function pendReopen(i) { var o = S.pend[i]; if (!o) return; get({ action:'pendingAction', orderId: o.orderId, mode:'reopen' }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已恢復待排', 'ok'); loadPending(); }); }
 
 // ==================== 統計 ====================
 function stPreset(n) { var t = new Date(S.today + 'T00:00:00'); var f = new Date(t); f.setDate(f.getDate() - n + (n ? 1 : 0)); document.getElementById('st-from').value = ymd(f); document.getElementById('st-to').value = S.today; }
