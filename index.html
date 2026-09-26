@@ -479,8 +479,17 @@ function enterApp(preloaded, onFail) {
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     // 登入回應若帶了 14 天時段預載，先塞進本機快取 → onClinicChange 直接用，不再打 API
-    if (d.range && d.range.dates) { var now0 = Date.now(); Object.keys(d.range.dates).forEach(function(dt){ var x = d.range.dates[dt]; x.success = true; S.slotCache[d.range.clinicCode + '|' + dt] = { d: x, at: now0 }; }); }
+    var now0 = Date.now();
+    if (d.range && d.range.dates) { Object.keys(d.range.dates).forEach(function(dt){ var x = d.range.dates[dt]; x.success = true; S.slotCache[d.range.clinicCode + '|' + dt] = { d: x, at: now0 }; }); }
+    // 今日名單也一併帶回 → 切到每日名單直接顯示（之後照常 10 秒版本輪詢）
+    if (d.todayList && d.todayList.list) { var lk0 = (S.user.isAdmin ? '' : S.user.clinicCode) + '|' + S.today; S.listCache[lk0] = { list: d.todayList.list, now: d.todayList.now || '' }; S.listVer = d.todayList.ver || ''; S.listAt = now0; S.listPre = lk0; }
     renderCal(); onClinicChange(); startListPoll();
+    // 背景預熱：管理者一次把全部院區 14 天時段載回本機（切院區零等待）；再順手預載明天的名單
+    setTimeout(function() {
+      if (S.user.isAdmin) get({ action:'getSlotsRange', clinicCode:'*', days:RANGE_DAYS }, function(r){ if (r && r.all) { var t1 = Date.now(); Object.keys(r.all).forEach(function(code){ Object.keys(r.all[code]).forEach(function(dt){ var x = r.all[code][dt]; x.success = true; if (!S.slotCache[code + '|' + dt] || S.slotCache[code + '|' + dt].at < t1 - SLOT_STALE_MS) S.slotCache[code + '|' + dt] = { d: x, at: t1 }; }); }); } }, null, { silent: true });
+      var tmr = (function(){ var t = new Date(S.today + 'T00:00:00'); t.setDate(t.getDate() + 1); return ymd(t); })();
+      get({ action:'getBookings', clinicCode:(S.user.isAdmin ? '' : S.user.clinicCode), date:tmr }, function(r){ if (r && r.list) S.listCache[(S.user.isAdmin ? '' : S.user.clinicCode) + '|' + tmr] = { list: r.list, now: r.now || '' }; }, null, { silent: true });
+    }, 1200);
     resetLoginForm(true); // 進入系統後把登入表單歸零，之後登出看到的是乾淨的登入頁
     loadDirectory(); if (!S._dirTimer) S._dirTimer = setInterval(function(){ if (!document.hidden) loadDirectory(); }, DIR_REFRESH_MS);
   };
@@ -498,6 +507,8 @@ function fillClinicSelects() {
   ['b-clinic','li-clinic','st-clinic','dc-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.user.isAdmin && S.clinics.length <= 1; });
 }
 
+// 預熱：登入頁一開就打一次 ping，讓 Apps Script 執行個體先醒著，按登入時少掉冷啟動
+(function warmUp() { try { fetch(API + '?action=ping&_=' + Date.now(), { keepalive: true }).catch(function(){}); } catch (e) {} })();
 // 自動登入
 (function autoLogin() {
   try {
@@ -867,6 +878,8 @@ function loadList(silent) {
     // 切日期／院區：先用上次抓過的名單立刻顯示（標示更新中），再向伺服器要最新
     if (lc) { S.list = lc.list; S.listNow = lc.now; renderList(); if (live) live.textContent = '● 更新 ' + dateTxt(date) + ' 名單中…'; }
     else { S.list = []; renderList(); if (live) live.textContent = '載入 ' + dateTxt(date) + ' 名單…'; }
+    // 登入時帶回的今日名單還很新（< 30 秒）→ 不必再抓，交給 10 秒版本輪詢確認
+    if (lc && S.listPre === lk && S.listAt && Date.now() - S.listAt < 30000) { _listBusy = false; if (live) { live.style.opacity = '1'; var n0 = new Date(S.listAt); live.textContent = '● 每 10 秒自動檢查 · 最後更新 ' + p2(n0.getHours()) + ':' + p2(n0.getMinutes()) + ':' + p2(n0.getSeconds()); } S.listPre = ''; return; }
   }
   get({ action:'getBookings', clinicCode:clinicSel, date:date }, function(d) {
     // 只接受「目前所選日期／院區」的最新一次回應：切換日期後，較慢回來的舊回應（前一天／後一天）一律忽略，名單才不會跳來跳去
