@@ -135,6 +135,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .swarn{display:flex;align-items:center;gap:12px;background:#FFF1EC;border:1px solid #F3B9A6;color:#9C3B1F;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.5}.swarn b{font-size:15px}.swarn .btn{margin-left:auto}
 table.lt tr.swrow td{background:#FFF4EF}table.lt tr.swrow td.time b{color:#C0392B}.pill.swp{background:#FDE2D8;color:#9C3B1F;white-space:normal;line-height:1.4;display:inline-block;max-width:260px;text-align:left}
 .slot .who .w{color:var(--red);font-weight:700}
+.es.off{background:#F7F8F7;border-color:var(--line2);color:#B3BDB8;cursor:not-allowed;opacity:.7}.es.off small{color:#B3BDB8}
 .slot.off{background:#F7F8F7;border-color:var(--line2);color:#B3BDB8;cursor:not-allowed;opacity:.75}.slot.off small,.slot.off .who{color:#B3BDB8}.slot.off:hover{border-color:var(--line2);background:#F7F8F7}.slot.off::after{content:'非此醫師班表時間';display:block;font-size:11px;color:#9AA6A1;margin-top:2px}
 .docnote{font-size:12px;color:var(--tx);background:var(--teal-l);border-radius:8px;padding:6px 10px;margin:0 0 12px}.docnote b{color:var(--teal)}
 .badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;line-height:18px;vertical-align:1px}
@@ -377,7 +378,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     </div>
     <div class="card">
       <h2>未回診名單 <span class="sub" id="ns-sum"></span></h2>
-      <div class="tw"><table><thead><tr><th>日期</th><th>時段</th><th>院區</th><th>醫師</th><th>姓名</th><th>身分證</th><th>方式</th><th>LINE 回覆</th></tr></thead><tbody id="ns-body"></tbody></table></div>
+      <div class="tw"><table><thead><tr><th>日期</th><th>時段</th><th>院區</th><th>醫師</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>LINE 回覆</th></tr></thead><tbody id="ns-body"></tbody></table></div>
       <div class="empty hidden" id="ns-empty">此區間沒有未回診紀錄</div>
     </div>
   </section>
@@ -1055,7 +1056,7 @@ function openEdit(i) {
   openModal('<h3>修改預約　<span style="font-size:14px;color:var(--mut);font-weight:400">' + esc(b.name) + '　' + b.pidMasked + '　' + esc(b.clinicName) + '院區</span></h3>' +
     '<div class="fld" style="margin-top:6px"><label>日期</label><input type="date" id="e-date" value="' + b.date + '" min="' + S.today + '" onchange="editLoadSlots()"></div>' +
     '<div class="fld"><label>時段 <span id="e-cap" style="color:var(--mut);font-size:13px"></span></label><div id="e-slots" class="eslots"><div class="empty" style="padding:14px 0">載入中…</div></div></div>' +
-    '<div class="grid2"><div class="fld"><label>醫師</label><select id="e-doctor"><option value="不指定醫師">不指定醫師</option>' + docs.map(function(n){ return '<option' + (n === b.doctor ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="grid2"><div class="fld"><label>醫師 <span id="e-docnote" style="color:var(--mut);font-size:12px;font-weight:400"></span></label><select id="e-doctor" onchange="editApplyDoctor()"><option value="不指定醫師">不指定醫師</option>' + docs.map(function(n){ return '<option' + (n === b.doctor ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>方式</label><div class="seg" style="margin:0;grid-template-columns:1fr 1fr" id="e-type"><button class="' + (b.type === '電話預約' ? 'on' : '') + '" onclick="editType(\'電話預約\',this)" style="padding:12px;font-size:15px">電話預約</button><button class="' + (b.type === '回診預約' ? 'on' : '') + '" onclick="editType(\'回診預約\',this)" style="padding:12px;font-size:15px">回診預約</button></div></div></div>' +
     '<div class="grid2"><div class="fld"><label>電話</label><input id="e-phone" type="tel" inputmode="numeric" maxlength="12" value="' + esc(b.phone || '') + '" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div><div class="fld"><label>出生年月日（民國）</label><input id="e-birth" inputmode="numeric" maxlength="10" placeholder="068/09/13" value="' + esc(b.birth || '') + '" oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')"></div></div>' +
     '<div class="fld"><label>備註</label><input id="e-note" value="' + esc(b.note) + '"></div>' +
@@ -1074,16 +1075,52 @@ function editLoadSlots() {
     box.innerHTML = d.slots.map(function(s) {
       var cnt = s.count - (same && s.key === b.slot ? 1 : 0); // 自己原本佔的名額不算
       var full = cnt >= s.cap, cur = same && s.key === b.slot, on = S.edit.slot === s.key && same, past = slotPassed(date, (s.min != null ? s.min : slotMin(s.key)) + 60) && !cur;
-      return '<div class="es' + (past ? ' past' : (full && !cur ? ' full' : '')) + (on ? ' on' : '') + '" onclick="' + (past ? "toast('此時段已經過了','err')" : 'editPick(\'' + s.key + '\',' + (full && !cur) + ',' + cnt + ',' + s.cap + ')') + '"><b>' + s.key + '</b><small>' + (cur ? '目前' : past ? '已過' : (full ? '已額滿' : cnt + '/' + s.cap)) + '</small></div>';
+      return '<div class="es' + (past ? ' past' : (full && !cur ? ' full' : '')) + (on ? ' on' : '') + '" data-m="' + (s.min != null ? s.min : slotMin(s.key)) + '" onclick="' + (past ? "toast('此時段已經過了','err')" : 'editPick(\'' + s.key + '\',' + (full && !cur) + ',' + cnt + ',' + s.cap + ')') + '"><b>' + s.key + '</b><small>' + (cur ? '目前' : past ? '已過' : (full ? '已額滿' : cnt + '/' + s.cap)) + '</small></div>';
     }).join('') || '<div class="empty">此日無可預約時段</div>';
     if (!same) S.edit.slot = '';
+    S.edit.sched = d.schedule || null; editBuildDoctors(); editApplyDoctor();
   });
+}
+// 修改視窗的醫師下拉：依該日官網班表 →「所選時段有診」→「本日其他時段有診」→「其他醫師」；原醫師一定保留可選
+function editBuildDoctors() {
+  var b = S.edit.b, sel = document.getElementById('e-doctor'); if (!sel) return; var cur = sel.value || b.doctor || '不指定醫師';
+  var docs = S.doctors.filter(function(d){ return d.clinicCode === b.clinicCode; }); var byNorm = {}; docs.forEach(function(d){ byNorm[normDoc(d.name)] = d.name; });
+  var sched = S.edit.sched, m0 = S.edit.slot ? slotMin(S.edit.slot) : null, duty = [], seen = {};
+  if (sched && sched.sessions) ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ var full = byNorm[normDoc(x.n)] || x.n, key = full + '|' + x.s; if (seen[key]) return; seen[key] = 1; duty.push({ name: full, label: full + '　' + x.s + '–' + x.e + '（' + k + '診）' + (x.x ? ' ⚠異動' : ''), covers: m0 != null && m0 < slotMin(x.e) && m0 + 60 > slotMin(x.s), order: slotMin(x.s) }); }); });
+  duty.sort(function(a, c){ return (c.covers - a.covers) || (a.order - c.order); });
+  var dutyNames = {}; duty.forEach(function(d){ dutyNames[d.name] = 1; });
+  var others = docs.map(function(d){ return d.name; }).filter(function(n){ return !dutyNames[n]; });
+  if (b.doctor && b.doctor !== '不指定醫師' && !dutyNames[b.doctor] && others.indexOf(b.doctor) < 0) others.unshift(b.doctor);
+  var opt = function(n, l){ return '<option value="' + esc(n) + '">' + esc(l || n) + '</option>'; };
+  var cov = duty.filter(function(d){ return d.covers; }), rest = duty.filter(function(d){ return !d.covers; });
+  var html = '<option value="不指定醫師">不指定醫師</option>';
+  if (cov.length) html += '<optgroup label="▶ 所選時段有診（官網班表）">' + cov.map(function(d){ return opt(d.name, d.label); }).join('') + '</optgroup>';
+  if (rest.length) html += '<optgroup label="' + (cov.length ? '本日其他時段有診' : '本日有診（官網班表）') + '">' + rest.map(function(d){ return opt(d.name, d.label); }).join('') + '</optgroup>';
+  if (others.length) html += '<optgroup label="' + (duty.length ? '其他醫師（本日無班）' : '醫師名單') + '">' + others.map(function(n){ return opt(n); }).join('') + '</optgroup>';
+  sel.innerHTML = html; sel.value = cur; if (sel.value !== cur) sel.value = '不指定醫師';
+}
+// 選了醫師 → 只開放其班表時段（同新增預約邏輯）；並提示原醫師在該時段是否仍有診
+function editApplyDoctor() {
+  var doc = document.getElementById('e-doctor').value, sched = S.edit.sched, note = document.getElementById('e-docnote');
+  var els = document.querySelectorAll('#e-slots .es');
+  if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { els.forEach(function(x){ x.classList.remove('off'); }); if (note) note.textContent = ''; return; }
+  var nd = normDoc(doc), ranges = [];
+  ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
+  els.forEach(function(x){ var m = +x.dataset.m; var ok = ranges.some(function(r){ return m < r[1] && m + 60 > r[0]; }); x.classList.toggle('off', !ok && !x.classList.contains('past')); if (!ok && x.classList.contains('on')) { x.classList.remove('on'); S.edit.slot = ''; } });
+  if (note) note.innerHTML = ranges.length ? '本日看診 ' + ranges.map(function(r){ return r[2]; }).join('、') + '，僅開放對應時段' : '<span style="color:var(--red)">本日無門診（如代診請選不指定）</span>';
 }
 function editPick(key, full, cnt, cap) {
   var msg = document.getElementById('e-msg');
+  var el = Array.prototype.filter.call(document.querySelectorAll('#e-slots .es'), function(x){ return x.querySelector('b').textContent === key; })[0];
+  if (el && el.classList.contains('off')) { msg.style.display = 'block'; msg.style.color = 'var(--red)'; msg.innerHTML = '⚠️ 依官網班表，' + esc(shortDoc(document.getElementById('e-doctor').value)) + ' 醫師 ' + key + ' 沒有看診；請改選其他時段或改醫師'; return; }
   if (full) { msg.style.display = 'block'; msg.innerHTML = '⚠️ ' + key + ' 該時段已額滿（' + cnt + '/' + cap + '），請改選其他時段'; msg.style.color = 'var(--red)'; return; }
   msg.style.display = 'none'; S.edit.slot = key;
   document.querySelectorAll('#e-slots .es').forEach(function(x){ x.classList.toggle('on', x.querySelector('b').textContent === key); });
+  editBuildDoctors(); // 依新時段重排「所選時段有診」群組
+  // 原醫師在新時段若沒班 → 醒目提醒
+  var doc = document.getElementById('e-doctor').value, sched = S.edit.sched;
+  if (sched && doc && !/不指定/.test(doc)) { var m0 = slotMin(key), on = false, who = []; ['早','午','晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (m0 < slotMin(x.e) && m0 + 60 > slotMin(x.s)) { who.push(shortDoc(x.n)); if (normDoc(x.n) === normDoc(doc)) on = true; } }); });
+    if (!on) { msg.style.display = 'block'; msg.style.color = 'var(--amb)'; msg.innerHTML = '⚠️ ' + esc(shortDoc(doc)) + ' 醫師依官網班表 ' + key + ' 沒有看診；該時段有診：' + (who.length ? esc(who.join('、')) : '無') + '。請改選醫師或時段。'; } }
 }
 function saveEdit() {
   var b = S.edit.b; if (!S.edit.slot) return toast('請選擇時段', 'err');
@@ -1173,7 +1210,7 @@ function loadStats() {
     document.getElementById('st-doc-body').innerHTML = tableRows(d.byDoctor);
     document.getElementById('ns-sum').textContent = d.from + ' ～ ' + d.to + '　共 ' + d.noShowList.length + ' 人';
     document.getElementById('ns-empty').classList.toggle('hidden', d.noShowList.length > 0);
-    document.getElementById('ns-body').innerHTML = d.noShowList.map(function(b){ return '<tr><td>' + b.date + '</td><td>' + b.slot + '</td><td>' + esc(b.clinicName) + '</td><td>' + esc(b.doctor) + '</td><td><b>' + esc(b.name) + '</b></td><td>' + b.pidMasked + '</td><td>' + b.type + '</td><td>' + (b.lineReply || (b.pushed ? '已提醒未回覆' : '未綁定')) + '</td></tr>'; }).join('');
+    document.getElementById('ns-body').innerHTML = d.noShowList.map(function(b){ return '<tr><td>' + b.date + '</td><td>' + b.slot + '</td><td>' + esc(b.clinicName) + '</td><td>' + esc(b.doctor) + '</td><td><b>' + esc(b.name) + '</b></td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(fmtPhone(b.phone)) + '</a>' : '<span class="pid">—</span>') + '</td><td>' + b.type + '</td><td>' + (b.lineReply || (b.pushed ? '已提醒未回覆' : '未綁定')) + '</td></tr>'; }).join('');
   });
 }
 function kpi(t, v, hl) { return '<div class="kpi' + (hl ? ' hl' : '') + '"><small>' + t + '</small><b>' + v + '</b></div>'; }
