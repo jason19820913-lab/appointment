@@ -132,6 +132,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .schedsrc{font-size:12px;color:var(--mut);margin:4px 0 12px}.schedsrc.none{color:#b08a2e}.schedsrc.est{color:#7a6a2a;background:#fbf6e6;border-radius:8px;padding:6px 10px}
 .perf{font-size:11px;color:rgba(255,255,255,.55);margin-left:10px;cursor:pointer;white-space:nowrap;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.18)}.perf:hover{color:#fff}.perf.slow{color:#ffd27a;border-color:#ffd27a}.perf.bad{color:#ff9c9c;border-color:#ff9c9c}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--tx);white-space:nowrap}
+.ntag{display:inline-block;margin-top:3px;color:var(--mut);font-size:11px}.ntag.todo{color:var(--red);font-weight:700}.ntag.ok{color:#1E7F5C;font-weight:700}
 .swarn{display:flex;align-items:center;gap:12px;background:#FFF1EC;border:1px solid #F3B9A6;color:#9C3B1F;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.5}.swarn b{font-size:15px}.swarn .btn{margin-left:auto}
 table.lt tr.swrow td{background:#FFF4EF}table.lt tr.swrow td.time b{color:#C0392B}.pill.swp{background:#FDE2D8;color:#9C3B1F;white-space:normal;line-height:1.4;display:inline-block;max-width:260px;text-align:left}
 .slot .who .w{color:var(--red);font-weight:700}
@@ -998,7 +999,7 @@ function renderList() {
   document.getElementById('li-count').textContent = '顯示 ' + rows.length + ' / 共 ' + S.list.length + ' 筆 · 依時段、序號排序';
   // 班表異動橫幅：本日待報到中，預約醫師在官網班表該時段沒有看診者
   var sw = S.list.filter(function(b){ return b.schedWarn && !/取消/.test(b.status) && b.status !== '已報到'; }); var bn = document.getElementById('li-swarn');
-  if (sw.length) { bn.innerHTML = '<span style="font-size:20px">⚠️</span><div><b>官網班表異動：' + sw.length + ' 筆預約的醫師在該時段已無門診，請通知民眾改約或改醫師</b><br>' + sw.slice(0, 6).map(function(b){ return esc(b.slot) + ' ' + esc(b.name) + '（原 ' + esc(shortDoc(b.doctor)) + ' → 現 ' + esc((b.schedWarn.current || []).map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、') || '無醫師') + '）'; }).join('　·　') + (sw.length > 6 ? '　… 等 ' + sw.length + ' 筆' : '') + '</div>' + (document.getElementById('li-q').value ? '' : '<button class="btn sm sec" onclick="document.getElementById(\'li-q\').value=\'\';filterSw()">只看異動</button>'); bn.classList.remove('hidden'); }
+  if (sw.length) { bn.innerHTML = '<span style="font-size:20px">⚠️</span><div><b>官網班表異動：' + sw.length + ' 筆預約的醫師在該時段已無門診，請通知民眾改約或改醫師</b><br>' + sw.slice(0, 6).map(function(b){ return esc(b.slot) + ' ' + esc(b.name) + '（原 ' + esc(shortDoc(b.doctor)) + ' → 現 ' + esc((b.schedWarn.current || []).map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、') || '無醫師') + '）'; }).join('　·　') + (sw.length > 6 ? '　… 等 ' + sw.length + ' 筆' : '') + '</div>' + (document.getElementById('li-q').value ? '' : '<button class="btn sm sec" onclick="document.getElementById(\'li-q\').value=\'\';filterSw()">只看異動</button>') + (function(){ var real = sw.filter(function(b){ return b.schedWarn.mode !== '推估'; }), todo = real.filter(function(b){ return b.bound && !(b.schedNotice && b.schedNotice.to === curDocs(b)); }); return real.length ? '<button class="btn sm" id="li-nbtn" onclick="notifySched()" title="對本日班表異動且已綁定 LINE 的民眾發送異動通知（會如期回診／需另改約／取消）">📣 LINE 通知異動民眾' + (todo.length ? '（' + todo.length + ' 位待通知）' : '（皆已通知）') + '</button>' : ''; })(); bn.classList.remove('hidden'); }
   else bn.classList.add('hidden');
   var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin; // 管理團隊看「全部院區」時多一欄院區
   document.getElementById('li-th-clinic').classList.toggle('hidden', !showClinic);
@@ -1006,7 +1007,7 @@ function renderList() {
     var cancelled = /取消/.test(b.status), late = lateMinutes(b), isLate = late > 0 || b.status === '未回診';
     var cls = cancelled ? 'cancel' : (isLate ? 'late' : (b.schedWarn ? 'swrow' : ''));
     var ck = cancelled ? '<span class="ck dis"></span>' : '<span class="ck' + (b.status === '已報到' ? ' on' : '') + '" onclick="opCheck(' + i + ',' + (b.status === '已報到') + ')">' + (b.status === '已報到' ? '✓' : '') + '</span>';
-    var line = (b.status === '取消-LINE' || b.lineReply === '取消') ? '<span class="pill red">LINE 取消</span>' : b.lineReply === '確認' ? '<span class="pill ok">已確認</span>' : b.status === '取消-電話' ? '<span class="pill red">電話取消</span>' : b.pushed ? '<span class="pill amb">未回覆</span>' : b.bound ? '<span class="pill grey">待提醒</span>' : '<span class="pill grey">未綁定</span>';
+    var line = (b.status === '取消-LINE' || b.lineReply === '取消') ? '<span class="pill red">LINE 取消</span>' : b.lineReply === '確認' ? '<span class="pill ok">已確認</span>' : b.lineReply === '改約' ? '<span class="pill swp" title="民眾在 LINE 異動通知選了「需另改約日期」，請回電安排">📞 要求改約</span>' : b.status === '取消-電話' ? '<span class="pill red">電話取消</span>' : b.pushed ? '<span class="pill amb">未回覆</span>' : b.bound ? '<span class="pill grey">待提醒</span>' : '<span class="pill grey">未綁定</span>';
     var st, ops, det = '<button class="obtn" onclick="openDetail(' + i + ')">詳細</button>', del = '<button class="obtn del" onclick="openDelete(' + i + ')" title="整筆刪除（不可復原）">🗑</button>';
     if (b.status === '已報到') { st = '<span class="pill done">已報到 ' + (b.checkedAt || '').slice(11) + '</span>'; ops = det; }
     else if (cancelled) { st = '<div class="stx red">ⓘ 已取消 ' + (b.cancelAt || '').slice(5) + ' · ' + (b.status === '取消-LINE' ? '民眾 LINE 取消 · 名額已釋出' : '櫃檯 ' + esc(b.cancelBy) + ' 登記') + '</div>'; ops = '<button class="obtn red" onclick="fillFrom(' + i + ')">候補遞補</button> <button class="obtn" onclick="opRestore(' + i + ')">復原</button>'; }
@@ -1014,7 +1015,7 @@ function renderList() {
     else if (isLate) { st = '<span class="pill amb">逾時未到' + (late < 9999 ? '（已過 ' + late + ' 分）' : '') + '</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
     else { st = '<span class="pill grey">待報到</span>'; ops = '<button class="obtn" onclick="openEdit(' + i + ')">修改</button> <button class="obtn red" onclick="opCancel(' + i + ')">取消</button>'; }
     if (b.schedWarn && !cancelled && b.status !== '已報到') {
-      var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>';
+      var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>' + noticeTag(b);
       ops = '<button class="obtn red" onclick="openEdit(' + i + ')">改約</button> ' + ops.replace('<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ', '');
     }
     return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
@@ -1258,6 +1259,26 @@ function closeModal() { document.getElementById('modal').classList.add('hidden')
 var toastTimer;
 function toast(msg, type) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + (type || ''); clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.className = ''; }, 3200); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+// 班表異動 LINE 通知：目前現班醫師字串（與後端通知表「現班醫師」同格式，用來判斷是否已通知過這一版）
+function curDocs(b) { return ((b.schedWarn && b.schedWarn.current) || []).map(function(x){ return x.split(' ')[0]; }).join('、') || '（該時段無醫師）'; }
+function noticeTag(b) {
+  if (b.schedWarn.mode === '推估') return '';
+  var n = b.schedNotice; if (!n) return b.bound ? '<br><small class="ntag todo">LINE 未通知</small>' : '<br><small class="ntag">未綁定 LINE，請電話通知</small>';
+  var same = n.to === curDocs(b);
+  if (n.reply) return '<br><small class="ntag ' + (/改約/.test(n.reply) ? 'todo' : 'ok') + '">民眾回覆：' + esc(n.reply) + ' ' + esc((n.replyAt || '').slice(5, 16)) + (same ? '' : '（舊版班表）') + '</small>';
+  return '<br><small class="ntag">已 LINE 通知 ' + esc((n.at || '').slice(5, 16)) + '，未回覆' + (same ? '' : '　⚠ 班表又變了，請再通知') + '</small>';
+}
+function notifySched() {
+  var todo = S.list.filter(function(b){ return b.schedWarn && b.schedWarn.mode !== '推估' && b.status === '待報到' && b.bound && !(b.schedNotice && b.schedNotice.to === curDocs(b)); });
+  var msg = todo.length ? '將對 ' + todo.length + ' 位已綁定 LINE 的民眾發送「門診異動通知」：\n' + todo.slice(0, 8).map(function(b){ return b.slot + ' ' + b.name + '（原 ' + shortDoc(b.doctor) + ' → ' + curDocs(b) + '）'; }).join('\n') + (todo.length > 8 ? '\n… 等 ' + todo.length + ' 位' : '') + '\n\n民眾可選：會如期回診／需另改約日期／取消預約。確定發送？' : '本日異動民眾都已通知過（或未綁定 LINE）。要對全部異動者重新發送一次嗎？';
+  if (!confirm(msg)) return;
+  var btn = document.getElementById('li-nbtn');
+  get({ action:'notifySched', clinicCode: document.getElementById('li-clinic').value, date: document.getElementById('li-date').value || S.today, force: todo.length ? '' : '1' }, function(d){
+    if (d.error) return toast(d.error, 'err');
+    toast('已發送 ' + d.sent + ' 位' + (d.unbound ? '，未綁定 ' + d.unbound : '') + (d.failed ? '，失敗 ' + d.failed : ''), d.failed ? 'err' : 'ok');
+    loadList(true);
+  }, btn);
+}
 function fmtPhone(p) { p = String(p || ''); return /^09\d{8}$/.test(p) ? p.slice(0,4) + '-' + p.slice(4,7) + '-' + p.slice(7) : p; }
 function mask(p) { return p.length === 10 ? p.slice(0,3) + '****' + p.slice(7) : p; }
 function p2(n) { return (n < 10 ? '0' : '') + n; }
