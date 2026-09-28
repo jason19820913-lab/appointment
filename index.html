@@ -499,7 +499,8 @@ function enterApp(preloaded, onFail) {
     document.getElementById('u-name').textContent = S.user.name;
     document.getElementById('u-av').textContent = (S.user.name || '?').charAt(0);
     document.getElementById('u-title').textContent = S.user.title || (S.user.isAdmin ? '管理者' : '櫃檯');
-    document.getElementById('u-clinic').textContent = S.user.isAdmin ? '全院區' : (S.user.clinicName + '院區');
+    S.multi = !!(S.user.isAdmin || (S.user.scope && S.user.scope.length > 1)); // 管理團隊或區經理（多院區）→ 有「全部院區」與院區欄
+    document.getElementById('u-clinic').textContent = S.user.isAdmin ? '全院區' : (S.user.scope && S.user.scope.length > 1 ? '區域 · ' + S.user.scope.length + ' 院區' : S.user.clinicName + '院區');
     if (!S.user.isAdmin && !S.user.clinicCode) toast('您的所屬院區「' + S.user.clinic + '」不在院區代碼表中，請通知管理者', 'err');
     fillClinicSelects();
     document.getElementById('li-date').value = S.today;
@@ -510,14 +511,14 @@ function enterApp(preloaded, onFail) {
     var now0 = Date.now();
     if (d.range && d.range.dates) { Object.keys(d.range.dates).forEach(function(dt){ var x = d.range.dates[dt]; x.success = true; S.slotCache[d.range.clinicCode + '|' + dt] = { d: x, at: now0 }; }); }
     // 今日名單也一併帶回 → 切到每日名單直接顯示（之後照常 10 秒版本輪詢）
-    if (d.todayList && d.todayList.list) { var lk0 = (S.user.isAdmin ? '' : S.user.clinicCode) + '|' + S.today; S.listCache[lk0] = { list: d.todayList.list, now: d.todayList.now || '' }; S.listVer = d.todayList.ver || ''; S.listAt = now0; S.listPre = lk0; }
+    if (d.todayList && d.todayList.list) { var lk0 = (S.multi ? '' : S.user.clinicCode) + '|' + S.today; S.listCache[lk0] = { list: d.todayList.list, now: d.todayList.now || '' }; S.listVer = d.todayList.ver || ''; S.listAt = now0; S.listPre = lk0; }
     setPendBadge(d.pendingCount || 0);
     renderCal(); onClinicChange(); startListPoll();
     // 背景預熱：管理者一次把全部院區 14 天時段載回本機（切院區零等待）；再順手預載明天的名單
     setTimeout(function() {
-      if (S.user.isAdmin) get({ action:'getSlotsRange', clinicCode:'*', days:RANGE_DAYS }, function(r){ if (r && r.all) { var t1 = Date.now(); Object.keys(r.all).forEach(function(code){ Object.keys(r.all[code]).forEach(function(dt){ var x = r.all[code][dt]; x.success = true; if (!S.slotCache[code + '|' + dt] || S.slotCache[code + '|' + dt].at < t1 - SLOT_STALE_MS) S.slotCache[code + '|' + dt] = { d: x, at: t1 }; }); }); } }, null, { silent: true });
+      if (S.multi) get({ action:'getSlotsRange', clinicCode:'*', days:RANGE_DAYS }, function(r){ if (r && r.all) { var t1 = Date.now(); Object.keys(r.all).forEach(function(code){ Object.keys(r.all[code]).forEach(function(dt){ var x = r.all[code][dt]; x.success = true; if (!S.slotCache[code + '|' + dt] || S.slotCache[code + '|' + dt].at < t1 - SLOT_STALE_MS) S.slotCache[code + '|' + dt] = { d: x, at: t1 }; }); }); } }, null, { silent: true });
       var tmr = (function(){ var t = new Date(S.today + 'T00:00:00'); t.setDate(t.getDate() + 1); return ymd(t); })();
-      get({ action:'getBookings', clinicCode:(S.user.isAdmin ? '' : S.user.clinicCode), date:tmr }, function(r){ if (r && r.list) S.listCache[(S.user.isAdmin ? '' : S.user.clinicCode) + '|' + tmr] = { list: r.list, now: r.now || '' }; }, null, { silent: true });
+      get({ action:'getBookings', clinicCode:(S.multi ? '' : S.user.clinicCode), date:tmr }, function(r){ if (r && r.list) S.listCache[(S.multi ? '' : S.user.clinicCode) + '|' + tmr] = { list: r.list, now: r.now || '' }; }, null, { silent: true });
     }, 1200);
     resetLoginForm(true); // 進入系統後把登入表單歸零，之後登出看到的是乾淨的登入頁
     loadDirectory(); if (!S._dirTimer) S._dirTimer = setInterval(function(){ if (!document.hidden) loadDirectory(); }, DIR_REFRESH_MS);
@@ -527,14 +528,14 @@ function enterApp(preloaded, onFail) {
 
 function fillClinicSelects() {
   var opts = S.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
-  var all = S.user.isAdmin ? '<option value="">全部院區</option>' : '';
+  var all = S.multi ? '<option value="">全部院區</option>' : '';
   document.getElementById('b-clinic').innerHTML = opts;
   document.getElementById('b-clinic-n').textContent = '（共 ' + S.clinics.length + ' 個）';
   document.getElementById('li-clinic').innerHTML = all + opts;
   document.getElementById('st-clinic').innerHTML = all + opts;
   document.getElementById('dc-clinic').innerHTML = all + opts;
-  document.getElementById('pd-clinic').innerHTML = all + opts; document.getElementById('pd-th-clinic').classList.toggle('hidden', !S.user.isAdmin);
-  ['b-clinic','li-clinic','st-clinic','dc-clinic','pd-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.user.isAdmin && S.clinics.length <= 1; });
+  document.getElementById('pd-clinic').innerHTML = all + opts; document.getElementById('pd-th-clinic').classList.toggle('hidden', !S.multi);
+  ['b-clinic','li-clinic','st-clinic','dc-clinic','pd-clinic'].forEach(function(id){ document.getElementById(id).disabled = !S.multi && S.clinics.length <= 1; });
 }
 
 // 效能記錄：頁首小字顯示最近一次連線耗時（總 / 伺服器），點擊看最近 20 筆，不必開開發者工具
@@ -1001,7 +1002,7 @@ function renderList() {
   var sw = S.list.filter(function(b){ return b.schedWarn && !/取消/.test(b.status) && b.status !== '已報到'; }); var bn = document.getElementById('li-swarn');
   if (sw.length) { bn.innerHTML = '<span style="font-size:20px">⚠️</span><div><b>官網班表異動：' + sw.length + ' 筆預約的醫師在該時段已無門診，請通知民眾改約或改醫師</b><br>' + sw.slice(0, 6).map(function(b){ return esc(b.slot) + ' ' + esc(b.name) + '（原 ' + esc(shortDoc(b.doctor)) + ' → 現 ' + esc((b.schedWarn.current || []).map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、') || '無醫師') + '）'; }).join('　·　') + (sw.length > 6 ? '　… 等 ' + sw.length + ' 筆' : '') + '</div>' + (document.getElementById('li-q').value ? '' : '<button class="btn sm sec" onclick="document.getElementById(\'li-q\').value=\'\';filterSw()">只看異動</button>') + (function(){ var real = sw.filter(function(b){ return b.schedWarn.mode !== '推估'; }), todo = real.filter(function(b){ return b.bound && !(b.schedNotice && b.schedNotice.to === curDocs(b)); }); return real.length ? '<button class="btn sm" id="li-nbtn" onclick="notifySched()" title="對本日班表異動且已綁定 LINE 的民眾發送異動通知（會如期回診／需另改約／取消）">📣 LINE 通知異動民眾' + (todo.length ? '（' + todo.length + ' 位待通知）' : '（皆已通知）') + '</button>' : ''; })(); bn.classList.remove('hidden'); }
   else bn.classList.add('hidden');
-  var showClinic = !document.getElementById('li-clinic').value && S.user.isAdmin; // 管理團隊看「全部院區」時多一欄院區
+  var showClinic = !document.getElementById('li-clinic').value && S.multi; // 管理團隊看「全部院區」時多一欄院區
   document.getElementById('li-th-clinic').classList.toggle('hidden', !showClinic);
   document.getElementById('li-body').innerHTML = rows.map(function(b, i) {
     var cancelled = /取消/.test(b.status), late = lateMinutes(b), isLate = late > 0 || b.status === '未回診';
@@ -1162,7 +1163,7 @@ function loadPending() {
   get({ action:'getPending', clinicCode:document.getElementById('pd-clinic').value, all: all ? '1' : '' }, function(d) {
     if (d.error) return toast(d.error, 'err');
     S.pend = d.list; if (!document.getElementById('pd-clinic').value) setPendBadge(d.count);
-    var admin = S.user.isAdmin;
+    var admin = S.multi;
     document.getElementById('pd-body').innerHTML = d.list.map(function(o, i) {
       var st = o.status === '待排' ? '<span class="tag amb">待排</span>' : o.status === '已排' ? '<span class="tag ok">已排</span>' : o.status === '已撤銷' ? '<span class="tag red">已撤銷</span>' : '<span class="tag no">' + esc(o.status) + '</span>';
       var rd = o.returnDate ? '<b' + (o.overdue && o.status === '待排' ? ' style="color:var(--red)"' : '') + '>' + o.returnDate.replace(/-/g, '/') + '</b>' + (o.returnPeriod ? ' <small>' + esc(o.returnPeriod) + '</small>' : '') : '<span style="color:var(--mut)">未指定' + (o.returnDays ? '（' + esc(o.returnDays) + ' 天）' : '') + '</span>';
