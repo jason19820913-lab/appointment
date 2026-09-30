@@ -345,7 +345,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
-      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 10 秒自動檢查</span><span id="li-count"></span></span></div>
+      <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 15 秒自動檢查</span><span id="li-count"></span></span></div>
     </div>
   </section>
 
@@ -428,34 +428,51 @@ function logoFallback(img) {
 }
 // ==================== API ====================
 // opts.silent：背景自動更新（名單輪詢／目錄／時段背景刷新）逾時或失敗時不跳紅框，只在畫面角落標示，下一輪自動再試
+// 會改資料的動作：只在「Google 還沒開始執行就回錯誤頁／429／503」時重試；純讀取動作連網路失敗也重試
+var WRITE_ACTIONS = /^(createBooking|checkIn|cancelBooking|updateBooking|deleteBooking|restoreBooking|setDoctor|notifySched|sendReminders|pendingAction|importSchedule|syncDoctors|syncClinics|syncBindings|logout)$/;
+var GET_RETRIES = 3, GET_RETRY_MS = [1200, 2500];
 function get(params, cb, btn, opts) {
   opts = opts || {};
   if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>'; }
   params.token = S.token;
   var q = Object.keys(params).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }).join('&');
-  var ctrl = ('AbortController' in window) ? new AbortController() : null;
-  var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 40000);
-  var t0 = Date.now();
-  fetch(API + '?' + q, ctrl ? { signal: ctrl.signal } : {}).then(function(r){ return r.text(); }).then(function(t) {
-    clearTimeout(timer);
-    var d;
-    try { d = JSON.parse(t); }
-    catch (e) { throw new Error(/無法開啟這個檔案|Sorry, unable/.test(t) ? '後端尚未完成授權：請在 Apps Script 編輯器執行一次 setupSheets 完成授權，再「新版本」重新部署' : '後端回傳的不是 JSON（可能是登入頁或錯誤頁），請檢查部署存取權是否為「所有人」'); }
-    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
-    S.lastMs = Date.now() - t0; S.lastSrvMs = d && d._ms;
- // 除錯用：總耗時 vs 伺服器處理時間（差值＝網路／Apps Script 排隊）
-    if (window.console && console.debug) console.debug('[API] ' + params.action + ' ' + S.lastMs + 'ms（伺服器 ' + (d && d._ms != null ? d._ms : '?') + 'ms）');
-    perfRecord(params.action, S.lastMs, d && d._ms, d && d.error);
-    if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
-    cb(d);
-  }).catch(function(e) {
-    clearTimeout(timer); _listBusy = false;
-    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
-    S.netErrAt = Date.now(); var live = document.getElementById('li-live');
-    if (e.name === 'AbortError' && opts.onTimeout) { opts.onTimeout(); return; }
-    if (opts.silent) { if (live) live.textContent = '● 連線不穩，稍後自動重試（' + (e.name === 'AbortError' ? '逾時' : '失敗') + '）'; if (window.console) console.warn('[API] ' + params.action + ' 背景更新失敗：' + e.message); return; }
-    toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
-  });
+  var t0 = Date.now(), isWrite = WRITE_ACTIONS.test(params.action || '');
+  var finish = function(){ if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; } };
+  var run = function(attempt) {
+    var ctrl = ('AbortController' in window) ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 40000);
+    fetch(API + '?' + q + '&_a=' + attempt, ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' })
+      .then(function(r){ return r.text().then(function(t){ return { status: r.status, t: t }; }); })
+      .then(function(res) {
+        clearTimeout(timer);
+        var d, t = res.t;
+        try { d = JSON.parse(t); }
+        catch (e) {
+          // 不是 JSON：Google 暫時無法服務（"Sorry, unable to open the file"／429／5xx）— 這發生在我們的程式還沒執行前，任何動作都可安全重試
+          var googleBusy = /無法開啟這個檔案|Sorry, unable|Too Many Requests|Service Unavailable|Bad Gateway|<html/i.test(t) || res.status === 429 || res.status >= 500;
+          if (googleBusy && attempt < GET_RETRIES) { if (window.console) console.warn('[API] ' + params.action + ' Google 暫時忙碌，' + GET_RETRY_MS[attempt - 1] + 'ms 後重試（第 ' + (attempt + 1) + ' 次）'); perfRecord(params.action, Date.now() - t0, null, 'busy→retry'); return setTimeout(function(){ run(attempt + 1); }, GET_RETRY_MS[attempt - 1]); }
+          var err = new Error(googleBusy ? 'Google 伺服器暫時忙碌，已重試 ' + attempt + ' 次仍失敗，請稍候幾秒再試一次' : '後端回傳的不是 JSON（可能是登入頁或錯誤頁），請檢查部署存取權是否為「所有人」'); err.busy = googleBusy; throw err;
+        }
+        finish();
+        S.lastMs = Date.now() - t0; S.lastSrvMs = d && d._ms;
+        if (window.console && console.debug) console.debug('[API] ' + params.action + ' ' + S.lastMs + 'ms（伺服器 ' + (d && d._ms != null ? d._ms : '?') + 'ms）' + (attempt > 1 ? '（第 ' + attempt + ' 次）' : ''));
+        perfRecord(params.action, S.lastMs, d && d._ms, d && d.error);
+        if (d && d.error === 'SESSION_EXPIRED') { toast('登入已過期，請重新登入', 'err'); logout(); return; }
+        cb(d);
+      }).catch(function(e) {
+        clearTimeout(timer);
+        // 網路層失敗（斷線／DNS／被擋）：讀取動作重試，寫入動作不重試（可能已經執行）
+        if (e.name !== 'AbortError' && !e.busy && !isWrite && attempt < GET_RETRIES && !/不是 JSON/.test(e.message)) { if (window.console) console.warn('[API] ' + params.action + ' 連線失敗，重試：' + e.message); return setTimeout(function(){ run(attempt + 1); }, GET_RETRY_MS[attempt - 1]); }
+        _listBusy = false; finish();
+        S.netErrAt = Date.now(); var live = document.getElementById('li-live');
+        perfRecord(params.action, Date.now() - t0, null, e.name === 'AbortError' ? 'timeout' : e.message);
+        if (e.name === 'AbortError' && opts.onTimeout) { opts.onTimeout(); return; }
+        if (opts.onError) { opts.onError(e); return; }
+        if (opts.silent) { if (live) live.textContent = '● 連線不穩，稍後自動重試（' + (e.name === 'AbortError' ? '逾時' : '失敗') + '）'; if (window.console) console.warn('[API] ' + params.action + ' 背景更新失敗：' + e.message); return; }
+        toast(e.name === 'AbortError' ? '連線逾時（40 秒），請稍後再試' : '連線失敗：' + e.message, 'err');
+      });
+  };
+  run(1);
 }
 
 // ==================== 登入 ====================
@@ -464,13 +481,14 @@ function doLogin() {
   var err = document.getElementById('l-err'); err.textContent = '';
   if (!id || !pw) { err.textContent = '請輸入員工編號與密碼'; return; }
   var btn = document.getElementById('l-btn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 登入中…';
+  var fail = function(msg){ err.textContent = msg; btn.disabled = false; btn.textContent = '登入'; };
   get({ action:'login', empId:id, pwd:pw }, function(d) {
-    if (d.error) { err.textContent = d.error; btn.disabled = false; btn.textContent = '登入'; return; }
+    if (d.error) return fail(d.error);
     S.token = d.token; S.user = d.user;
     try { STORE && STORE.setItem(LS_KEY, JSON.stringify({ token:d.token, user:d.user, at:Date.now() })); } catch (e) {}
     btn.innerHTML = '<span class="spin"></span> 載入資料…';
-    enterApp(d.init && d.init.success ? d.init : null, function(){ btn.disabled = false; btn.textContent = '登入'; });
-  });
+    enterApp(d.init && d.init.success ? d.init : null, function(m){ fail(m || '載入失敗，請再按一次登入'); });
+  }, null, { onError: function(e){ fail(e.name === 'AbortError' ? '連線逾時（40 秒），請再試一次' : e.message); } });
 }
 document.getElementById('l-pw').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
 
@@ -492,8 +510,9 @@ function resetLoginForm(clearId) {
 }
 
 function enterApp(preloaded, onFail) {
-  var apply = function(d) {
-    if (d.error) { toast(d.error, 'err'); logout(); if (onFail) onFail(); return; }
+  var apply = function(d) { try { applyInit(d); } catch (e) { if (window.console) console.error('enterApp', e); toast('畫面初始化失敗：' + e.message, 'err'); if (onFail) onFail('畫面初始化失敗：' + e.message); } };
+  var applyInit = function(d) {
+    if (d.error) { toast(d.error, 'err'); logout(); if (onFail) onFail(d.error); return; }
     S.user = d.user; S.clinics = d.clinics; S.doctors = d.doctors; S.settings = d.settings; S.today = d.today;
     S.date = S.today; var t = new Date(S.today + 'T00:00:00'); S.calY = t.getFullYear(); S.calM = t.getMonth();
     document.getElementById('u-name').textContent = S.user.name;
@@ -516,14 +535,14 @@ function enterApp(preloaded, onFail) {
     renderCal(); onClinicChange(); startListPoll();
     // 背景預熱：管理者一次把全部院區 14 天時段載回本機（切院區零等待）；再順手預載明天的名單
     setTimeout(function() {
-      if (S.multi) get({ action:'getSlotsRange', clinicCode:'*', days:RANGE_DAYS }, function(r){ if (r && r.all) { var t1 = Date.now(); Object.keys(r.all).forEach(function(code){ Object.keys(r.all[code]).forEach(function(dt){ var x = r.all[code][dt]; x.success = true; if (!S.slotCache[code + '|' + dt] || S.slotCache[code + '|' + dt].at < t1 - SLOT_STALE_MS) S.slotCache[code + '|' + dt] = { d: x, at: t1 }; }); }); } }, null, { silent: true });
+      if (S.multi && !S.prefetched) { S.prefetched = true; get({ action:'getSlotsRange', clinicCode:'*', days:7 }, function(r){ if (r && r.all) { var t1 = Date.now(); Object.keys(r.all).forEach(function(code){ Object.keys(r.all[code]).forEach(function(dt){ var x = r.all[code][dt]; x.success = true; if (!S.slotCache[code + '|' + dt] || S.slotCache[code + '|' + dt].at < t1 - SLOT_STALE_MS) S.slotCache[code + '|' + dt] = { d: x, at: t1 }; }); }); } }, null, { silent: true }); }
       var tmr = (function(){ var t = new Date(S.today + 'T00:00:00'); t.setDate(t.getDate() + 1); return ymd(t); })();
       get({ action:'getBookings', clinicCode:(S.multi ? '' : S.user.clinicCode), date:tmr }, function(r){ if (r && r.list) S.listCache[(S.multi ? '' : S.user.clinicCode) + '|' + tmr] = { list: r.list, now: r.now || '' }; }, null, { silent: true });
-    }, 1200);
+    }, 4000);
     resetLoginForm(true); // 進入系統後把登入表單歸零，之後登出看到的是乾淨的登入頁
     loadDirectory(); if (!S._dirTimer) S._dirTimer = setInterval(function(){ if (!document.hidden) loadDirectory(); }, DIR_REFRESH_MS);
   };
-  if (preloaded) apply(preloaded); else get({ action:'getInit' }, apply);
+  if (preloaded) apply(preloaded); else get({ action:'getInit' }, apply, null, { onError: function(e){ toast('連線失敗：' + e.message, 'err'); if (onFail) onFail(e.message); } });
 }
 
 function fillClinicSelects() {
@@ -565,7 +584,7 @@ function copyPerf() { var txt = S.perfLog.map(function(r){ return [p2(r.t.getHou
     S.token = o.token; S.user = o.user;
     var btn = document.getElementById('l-btn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 恢復登入狀態…';
     document.getElementById('l-id').value = o.user && o.user.empId || '';
-    enterApp(null, function(){ resetLoginForm(false); });
+    enterApp(null, function(m){ resetLoginForm(false); if (m) document.getElementById('l-err').textContent = '恢復登入失敗：' + m + '，請重新登入'; });
   } catch (e) {}
 })();
 
@@ -916,7 +935,7 @@ function resetForm() {
 
 // ==================== 每日名單 ====================
 // 每日名單自動更新：畫面停在名單頁且視窗在前景時，每 20 秒重新載入；切回分頁 / 視窗取得焦點時也立即更新
-var LIST_POLL_MS = 10000, _pollTimer = null, _listBusy = false;
+var LIST_POLL_MS = 15000, _pollTimer = null, _listBusy = false;
 // 輪詢改為「先問版本號」：getVer 只讀伺服器快取、不開試算表，通常 0.2 秒內回；版本沒變就不重抓名單（每 90 秒仍強制抓一次保險）
 var LIST_FORCE_MS = 90000, _verBusy = false;
 function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
@@ -928,7 +947,7 @@ function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
   get({ action:'getVer' }, function(d) {
     _verBusy = false;
     if (d && d.ver && d.ver !== S.listVer) loadList(true);
-    else { var live = document.getElementById('li-live'); if (live && S.listAt) { var n = new Date(S.listAt); live.textContent = '● 每 10 秒自動檢查 · 資料無變動 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds()); } }
+    else { var live = document.getElementById('li-live'); if (live && S.listAt) { var n = new Date(S.listAt); live.textContent = '● 每 15 秒自動檢查 · 資料無變動 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds()); } }
   }, null, { silent: true });
 }, LIST_POLL_MS); }
 function stopListPoll() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = null; }
@@ -948,7 +967,7 @@ function loadList(silent) {
     if (lc) { S.list = lc.list; S.listNow = lc.now; renderList(); if (live) live.textContent = '● 更新 ' + dateTxt(date) + ' 名單中…'; }
     else { S.list = []; renderList(); if (live) live.textContent = '載入 ' + dateTxt(date) + ' 名單…'; }
     // 登入時帶回的今日名單還很新（< 30 秒）→ 不必再抓，交給 10 秒版本輪詢確認
-    if (lc && S.listPre === lk && S.listAt && Date.now() - S.listAt < 30000) { _listBusy = false; if (live) { live.style.opacity = '1'; var n0 = new Date(S.listAt); live.textContent = '● 每 10 秒自動檢查 · 最後更新 ' + p2(n0.getHours()) + ':' + p2(n0.getMinutes()) + ':' + p2(n0.getSeconds()); } S.listPre = ''; return; }
+    if (lc && S.listPre === lk && S.listAt && Date.now() - S.listAt < 30000) { _listBusy = false; if (live) { live.style.opacity = '1'; var n0 = new Date(S.listAt); live.textContent = '● 每 15 秒自動檢查 · 最後更新 ' + p2(n0.getHours()) + ':' + p2(n0.getMinutes()) + ':' + p2(n0.getSeconds()); } S.listPre = ''; return; }
   }
   get({ action:'getBookings', clinicCode:clinicSel, date:date }, function(d) {
     // 只接受「目前所選日期／院區」的最新一次回應：切換日期後，較慢回來的舊回應（前一天／後一天）一律忽略，名單才不會跳來跳去
@@ -958,7 +977,7 @@ function loadList(silent) {
     if (d.error) { if (!silent) toast(d.error, 'err'); return; }
     S.list = d.list.filter(function(b){ return !b.date || b.date === date; }); S.listNow = d.now || ''; S.listVer = d.ver || ''; S.listAt = Date.now();
     S.listCache[lk] = { list: S.list, now: S.listNow };
-    var n = new Date(); if (live) live.textContent = '● 每 10 秒自動檢查 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
+    var n = new Date(); if (live) live.textContent = '● 每 15 秒自動檢查 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
     // 醫師篩選選項：該院區名單 + 當日出現過的醫師
     var code = document.getElementById('li-clinic').value; var names = {};
     S.doctors.forEach(function(x){ if (!code || x.clinicCode === code) names[x.name] = 1; }); S.list.forEach(function(b){ names[b.doctor] = 1; });
