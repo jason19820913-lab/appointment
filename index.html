@@ -606,6 +606,7 @@ function showView(v) {
 function clinicName() { var c = S.clinics.filter(function(x){ return x.code === document.getElementById('b-clinic').value; })[0]; return c ? c.name + '院區' : ''; }
 function onClinicChange() {
   S.sched = null; S.schedKey = '';
+  setTimeout(function(){ loadErpDir(); }, 800); // ERP 病人目錄（背景，不擋時段）
   renderDoctorSelect();
   loadSlots();
 }
@@ -794,12 +795,21 @@ function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button
 
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
 var DIR_REFRESH_MS = 120000;
+// 金鶯 ERP（展望病患基本資料）：目前所選院區的精簡目錄 [病歷號,姓名,身分證,生日,手機,最近來診(民國)]，登入／切院區時背景載一次，之後四欄連動即時比對
+S.erp = {}; S.erpBusy = {};
+function loadErpDir(code) {
+  code = code || document.getElementById('b-clinic').value; if (!code || S.erp[code] || S.erpBusy[code]) return;
+  S.erpBusy[code] = true;
+  get({ action:'getErpDir', clinicCode: code }, function(d){ S.erpBusy[code] = false; if (d && d.success) { S.erp[code] = d.list || []; S.erpAt = d.syncAt || ''; if (window.console) console.debug('[ERP] ' + code + ' 目錄 ' + S.erp[code].length + ' 人'); } }, null, { silent: true, onError: function(){ S.erpBusy[code] = false; } });
+}
+function rocToIso(r) { var m = String(r || '').match(/^(\d{2,3})\/(\d{2})\/(\d{2})$/); return m ? (+m[1] + 1911) + '-' + m[2] + '-' + m[3] : ''; }
 function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); } if (cb) cb(); }, null, { silent: true }); }
 // 四欄連動：姓名／身分證／出生年月日／電話 任一欄輸入 → 在本機目錄（病人主檔 ∪ LINE 綁定）比對，點選後四欄一起帶出；同院區就診過者排前面
 var AC_MIN = { name: 1, pid: 3, birth: 3, phone: 4 };
 function dirRec(x) { return { pid: x.p, pidMasked: mask(x.p), name: x.n, lastDate: x.d, lastClinic: x.c, lastDoctor: x.dr, bound: x.b, source: x.s, phone: x.ph || '', birth: x.bd || '' }; }
 function dirSearch(q, field) {
-  if (!S.dir) return [];
+  if (!S.dir && !S.erp[document.getElementById('b-clinic').value]) return [];
+  if (!S.dir) S.dir = [];
   field = field || 'name'; var out = [], qs = q.trim(), qid = qs.toUpperCase(), qd = qs.replace(/\D/g, ''), here = clinicName().replace(/院區$/, '');
   for (var i = 0; i < S.dir.length && out.length < 12; i++) {
     var x = S.dir[i], hit = false;
@@ -809,6 +819,23 @@ function dirSearch(q, field) {
     else if (field === 'phone') hit = !!qd && String(x.ph || '').indexOf(qd) >= 0;
     if (hit) out.push(dirRec(x));
   }
+  // 展望病患基本資料（金鶯 ERP，所選院區）：補上本系統沒預約過的老病人；同身分證者只補缺的生日／電話／病歷號
+  var erp = S.erp[document.getElementById('b-clinic').value];
+  if (erp && erp.length) {
+    var seen = {}; out.forEach(function(r){ seen[r.pid] = r; });
+    for (var k = 0; k < erp.length && out.length < 12; k++) {
+      var e = erp[k], eh = false; // [病歷號,姓名,身分證,生日,手機,最近來診]
+      if (field === 'name') eh = e[1].indexOf(qs) >= 0 || (qid.length >= 4 && e[2].indexOf(qid) === 0);
+      else if (field === 'pid') eh = e[2].indexOf(qid) === 0;
+      else if (field === 'birth') eh = !!qd && e[3].replace(/\D/g, '').indexOf(qd) === 0;
+      else if (field === 'phone') eh = !!qd && e[4].indexOf(qd) >= 0;
+      if (!eh) continue;
+      var dup = seen[e[2]];
+      if (dup) { if (!dup.birth) dup.birth = e[3]; if (!dup.phone) dup.phone = e[4]; dup.chartNo = e[0]; continue; }
+      var rec = { pid: e[2], pidMasked: mask(e[2]), name: e[1], lastDate: rocToIso(e[5]), lastClinic: here, lastDoctor: '', bound: false, source: 'HIS', phone: e[4], birth: e[3], chartNo: e[0] };
+      seen[e[2]] = rec; out.push(rec);
+    }
+  }
   out.sort(function(a, b){ return (b.name === qs) - (a.name === qs) || (b.lastClinic === here) - (a.lastClinic === here) || String(b.lastDate).localeCompare(String(a.lastDate)); });
   return out;
 }
@@ -816,7 +843,7 @@ function acInput(field, v) {
   clearTimeout(S.acTimer); if (field === 'name' || field === 'pid') { S.bound = null; pidHint(); }
   var typed = String(v || '').trim(); S.acField = field;
   if (typed.length < (AC_MIN[field] || 1)) { acHide(); return; }
-  if (S.dir) { acShow(typed, dirSearch(typed, field), field); return; } // 本機快取 → 即時
+  if (S.dir || S.erp[document.getElementById('b-clinic').value]) { acShow(typed, dirSearch(typed, field), field); return; } // 本機快取（歷史預約＋LINE 綁定＋展望病歷）→ 即時
   if (field !== 'name' && field !== 'pid') { acHide(); return; }
   S.acTimer = setTimeout(function() {
     get({ action:'searchPatient', q:typed }, function(d) {
@@ -837,11 +864,11 @@ function acShow(typed, list, field) {
   var pidEl = document.getElementById('b-pid');
   if (exact.length === 1 && (field !== 'name' || pidEl.value.length < 10)) { acPick(list.indexOf(exact[0])); toast('已依歷史紀錄帶入 ' + exact[0].name + '（' + exact[0].pidMasked + '）', 'ok'); return; }
   var here = clinicName().replace(/院區$/, '');
-  box.innerHTML = '<div class="h">' + (here ? here + '院區就診過 / ' : '') + '歷史預約 / LINE 綁定紀錄' + (exact.length > 1 ? '（' + exact.length + ' 筆相同，請核對）' : '') + '，點選自動帶入四欄</div>' + list.map(function(p, i) {
+  box.innerHTML = '<div class="h">' + (here ? here + '院區就診過 / ' : '') + '歷史預約 / LINE 綁定 / 展望病歷' + (exact.length > 1 ? '（' + exact.length + ' 筆相同，請核對）' : '') + '，點選自動帶入四欄</div>' + list.map(function(p, i) {
     var dt = p.lastDate ? String(p.lastDate).slice(5).replace('-', '/') : '';
     var where = (p.lastClinic ? esc(p.lastClinic) + '院區' : '') + (p.lastDoctor ? ' ' + esc(p.lastDoctor) : '');
     var extra = (p.birth ? '<span class="pid">· ' + esc(p.birth) + '</span>' : '') + (p.phone ? '<span class="pid">· ' + esc(fmtPhone(p.phone)) + '</span>' : '');
-    return '<div class="aci' + (p.lastClinic && p.lastClinic === here ? ' here' : '') + '" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + extra + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (dt ? ' · ' + dt : '') + '</div></div>';
+    return '<div class="aci' + (p.lastClinic && p.lastClinic === here ? ' here' : '') + '" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + extra + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (p.chartNo ? ' · 病歷 ' + esc(p.chartNo) : '') + (dt ? ' · ' + dt : '') + '</div></div>';
   }).join('');
   box.classList.remove('hidden');
 }
@@ -1187,7 +1214,7 @@ function loadPending() {
       var st = o.status === '待排' ? '<span class="tag amb">待排</span>' : o.status === '已排' ? '<span class="tag ok">已排</span>' : o.status === '已撤銷' ? '<span class="tag red">已撤銷</span>' : '<span class="tag no">' + esc(o.status) + '</span>';
       var rd = o.returnDate ? '<b' + (o.overdue && o.status === '待排' ? ' style="color:var(--red)"' : '') + '>' + o.returnDate.replace(/-/g, '/') + '</b>' + (o.returnPeriod ? ' <small>' + esc(o.returnPeriod) + '</small>' : '') : '<span style="color:var(--mut)">未指定' + (o.returnDays ? '（' + esc(o.returnDays) + ' 天）' : '') + '</span>';
       var ops = o.status === '待排' ? '<button class="btn sm" onclick="pendFill(' + i + ')">排入預約</button> <button class="btn sm sec" onclick="pendSkip(' + i + ')">略過</button>' : (o.status === '已略過' ? '<button class="btn sm sec" onclick="pendReopen(' + i + ')">恢復待排</button>' : (o.bookingId ? '<small>' + esc(o.bookingId) + '</small>' : ''));
-      return '<tr' + (o.status !== '待排' ? ' class="done"' : (o.overdue ? ' class="late"' : '')) + '>' + (admin ? '<td>' + esc(o.clinicName) + '</td>' : '') + '<td>' + rd + '</td><td><b>' + esc(o.name) + '</b>' + (o.chartNo ? '<br><small style="color:var(--mut)">病歷 ' + esc(o.chartNo) + '</small>' : '') + '</td><td>' + o.pidMasked + '</td><td>' + esc(o.birth) + '</td><td>' + (o.phone ? '<a href="tel:' + esc(o.phone) + '">' + esc(fmtPhone(o.phone)) + '</a>' : '') + '</td><td>' + esc(o.doctor) + '</td><td><small>' + esc(o.visitDate) + '<br>' + esc(o.orderedAt) + '</small></td><td><small>' + esc(o.note) + '</small></td><td>' + (o.bound ? '<span class="tag ok">已綁定</span>' : '<span class="tag no">未綁定</span>') + '</td><td>' + st + '</td><td>' + ops + '</td></tr>';
+      return '<tr' + (o.status !== '待排' ? ' class="done"' : (o.overdue ? ' class="late"' : '')) + '>' + (admin ? '<td>' + esc(o.clinicName) + '</td>' : '') + '<td>' + rd + '</td><td><b>' + (o.name ? esc(o.name) : '<span style="color:var(--amb)">（初診，待 ERP 補基本資料）</span>') + '</b>' + (o.chartNo ? '<br><small style="color:var(--mut)">病歷 ' + esc(o.chartNo) + '</small>' : '') + '</td><td>' + o.pidMasked + '</td><td>' + esc(o.birth) + '</td><td>' + (o.phone ? '<a href="tel:' + esc(o.phone) + '">' + esc(fmtPhone(o.phone)) + '</a>' : '') + '</td><td>' + esc(o.doctor) + '</td><td><small>' + esc(o.visitDate) + '<br>' + esc(o.orderedAt) + '</small></td><td><small>' + esc(o.note) + '</small></td><td>' + (o.bound ? '<span class="tag ok">已綁定</span>' : '<span class="tag no">未綁定</span>') + '</td><td>' + st + '</td><td>' + ops + '</td></tr>';
     }).join('') || '<tr><td colspan="12" class="empty">目前沒有待排回診</td></tr>';
     document.getElementById('pd-count').textContent = '待排 ' + d.count + ' 筆' + (all ? '（共列出 ' + d.list.length + ' 筆）' : '');
   });
