@@ -356,6 +356,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="bar">
         <select id="pd-clinic" onchange="loadPending()"></select>
         <label class="chk" style="margin-left:8px"><input type="checkbox" id="pd-all" onchange="loadPending()"> 含已排／已略過／已撤銷</label>
+        <button class="btn sm sec" style="margin-left:8px" onclick="erpFillNow(this)" title="待排名單中姓名／身分證／生日／電話空白者，立即向金鶯 ERP 補齊（平常每晚 00:30 自動做）">⟳ 從 ERP 補基本資料</button>
         <button class="btn sm sec" style="margin-left:auto" onclick="loadPending()">重新整理</button>
       </div>
       <div class="tw"><table class="lt"><thead><tr><th id="pd-th-clinic" class="hidden">院區</th><th>建議回診日</th><th>姓名</th><th>身分證</th><th>出生年月日</th><th>電話</th><th>開單醫師</th><th>看診日 / 開單</th><th>備註</th><th>LINE</th><th>狀態</th><th>操作</th></tr></thead><tbody id="pd-body"></tbody></table></div>
@@ -1204,6 +1205,7 @@ function fillFrom(i) {
 
 // ==================== 待排回診（展望 back 醫令） ====================
 function setPendBadge(n) { S.pendCount = n; var b = document.getElementById('pend-badge'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n); }
+function erpFillNow(btn) { get({ action:'erpFill' }, function(d){ if (d.error) return toast(d.error, 'err'); toast('需補 ' + d.need + ' 筆，補齊 ' + d.filled + (d.notFound ? '，ERP 尚無 ' + d.notFound + '（初診當天可能還沒同步）' : ''), 'ok'); loadPending(); }, btn); }
 function loadPending() {
   var all = document.getElementById('pd-all').checked;
   get({ action:'getPending', clinicCode:document.getElementById('pd-clinic').value, all: all ? '1' : '' }, function(d) {
