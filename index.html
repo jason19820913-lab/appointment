@@ -195,8 +195,7 @@ table.lt{min-width:1040px}
 .es:hover{border-color:var(--teal)}.es.on{border:2px solid var(--teal);background:var(--teal-l);color:var(--teal)}.es.on small{color:var(--teal)}
 .es.full{background:var(--grey-l);color:var(--mut);cursor:not-allowed;border-color:var(--grey-l)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-@media(max-width:1100px){.grid3{grid-template-columns:1fr 1fr}}
+.grid-nc{display:grid;grid-template-columns:1.7fr 1fr;gap:12px}
 .md{max-width:560px}
 /* 名單 / 統計 / 醫師 */
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
@@ -314,14 +313,16 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
         <h3 class="step step-row">STEP 4 <span>· 預約方式與民眾資料</span><button type="button" class="clearbtn" onclick="clearPatient()" title="清空姓名、身分證、生日、電話、備註">✕ 一鍵清空</button></h3>
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
         <div class="hint" style="margin:-4px 0 6px">姓名／身分證／生日／電話／病歷號 任一欄輸入即比對本院區就診名單與 LINE 綁定，點選後四欄自動帶齊</div>
-        <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput('name',this.value);renderSummary()" onfocus="acInput('name',this.value)" onblur="acBlur()"><div class="acl hidden" id="acl"></div></div>
+        <div class="grid-nc">
+          <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput('name',this.value);renderSummary()" onfocus="acInput('name',this.value)" onblur="acBlur()"><div class="acl hidden" id="acl"></div></div>
+          <div class="fld ac"><label>病歷號（展望）</label><input id="b-chart" inputmode="numeric" placeholder="0000123" maxlength="10" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9A-Za-z]/g,'');acInput('chart',this.value)" onfocus="acInput('chart',this.value)" onblur="acBlur();chartTidy()" onkeydown="if(event.key==='Enter')acEnter()"></div>
+        </div>
         <div class="fld ac"><label>身分證字號（LINE 綁定比對鍵）</label>
           <div class="pid-row"><input id="b-pid" placeholder="A123456789" maxlength="10" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint();acInput('pid',this.value);renderSummary()" onfocus="acInput('pid',this.value)" onblur="acBlur()" onkeydown="if(event.key==='Enter')acEnter()"><button class="btn" onclick="pidLookup()">帶入</button></div>
           <div class="hint" id="pid-hint"></div></div>
-        <div class="grid3">
+        <div class="grid2">
           <div class="fld ac"><label>出生年月日（民國）</label><input id="b-birth" inputmode="numeric" placeholder="068/09/13" maxlength="10" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9\/]/g,'');acInput('birth',this.value)" onfocus="acInput('birth',this.value)" onblur="acBlur();birthTidy()" onkeydown="if(event.key==='Enter')acEnter()"></div>
           <div class="fld ac"><label>電話號碼</label><input id="b-phone" type="tel" inputmode="numeric" placeholder="0912345678" maxlength="12" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9]/g,'');acInput('phone',this.value)" onfocus="acInput('phone',this.value)" onblur="acBlur()" onkeydown="if(event.key==='Enter')acEnter()"></div>
-          <div class="fld ac"><label>病歷號（展望）</label><input id="b-chart" inputmode="numeric" placeholder="0000123" maxlength="10" autocomplete="off" oninput="this.value=this.value.replace(/[^0-9A-Za-z]/g,'');acInput('chart',this.value)" onfocus="acInput('chart',this.value)" onblur="acBlur();chartTidy()" onkeydown="if(event.key==='Enter')acEnter()"></div>
         </div>
         <div class="fld"><label>備註（選填）</label><input id="b-note" placeholder="例：慢箋領藥、需抽血…"></div>
         <div class="sum"><h5>預約摘要</h5><div id="sum"></div></div>
