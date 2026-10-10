@@ -130,7 +130,7 @@ h2{font-size:18px;margin:0 0 14px}
 var API = 'https://script.google.com/macros/s/AKfycby0VcU__CbiQqa0sM_q_iXc5BwWS4Wb00ivQiOprhapTYWauxu8M0xvG08hXtgDudBIXQ/exec';
 var LIFF_ID = '2011961586-smsv8LJf'; // LINE Developers → 候診推播 LINE Login channel → LIFF → 建立後貼上（例 2010248499-abcdefgh）
 
-var S = { cfg:null, idToken:'', uid:'', first:null, slots:null, date:'', slot:'', inLine:false };
+var S = { cfg:null, idToken:'', accessToken:'', uid:'', first:null, slots:null, date:'', slot:'', inLine:false };
 function $(id){ return document.getElementById(id); }
 function go(v){ ['home','query','book','notfirst','slot','done'].forEach(function(k){ $('v-'+k).classList.toggle('hidden', k !== v); }); window.scrollTo(0,0); }
 function showErr(id, msg){ var el = $(id); el.textContent = msg || ''; el.classList.toggle('hidden', !msg); }
@@ -148,15 +148,17 @@ function api(params, cb, btn, txt) {
 }
 
 // ===== LIFF =====
+// 取得可驗證的身分：優先 idToken（需 openid scope），沒有就用 accessToken（只需 profile scope，後端會向 LINE 驗證）
 (function initLiff() {
   var st = $('liff-state');
-  if (!window.liff || LIFF_ID === 'PASTE_LIFF_ID') { st.textContent = '提示：從金鶯診所 LINE 官方帳號開啟本頁，預約後可收到 LINE 提醒。'; return; }
+  if (!window.liff) { st.textContent = 'LINE SDK 載入失敗，仍可預約但不會收到 LINE 通知。'; return; }
+  if (LIFF_ID === 'PASTE_LIFF_ID') { st.textContent = '提示：從金鶯診所 LINE 官方帳號開啟本頁，預約後可收到 LINE 提醒。'; return; }
   liff.init({ liffId: LIFF_ID }).then(function() {
     S.inLine = liff.isInClient();
-    if (!liff.isLoggedIn()) { if (S.inLine) { liff.login(); return; } st.textContent = '提示：從金鶯診所 LINE 官方帳號開啟本頁，預約後可收到 LINE 提醒。'; return; }
-    S.idToken = liff.getIDToken() || '';
-    liff.getProfile().then(function(p){ S.uid = p.userId; st.innerHTML = '✓ 已連結 LINE（' + (p.displayName || '') + '），預約成功會傳送通知到您的 LINE'; }).catch(function(){ st.textContent = '已連結 LINE'; });
-  }).catch(function(e){ st.textContent = 'LINE 連線失敗（' + e.message + '），仍可預約但不會收到 LINE 通知。'; });
+    if (!liff.isLoggedIn()) { if (S.inLine) { liff.login(); return; } st.textContent = '提示：從金鶯診所 LINE 官方帳號開啟本頁並登入，預約後可收到 LINE 提醒。'; return; }
+    S.idToken = liff.getIDToken() || ''; S.accessToken = liff.getAccessToken() || '';
+    liff.getProfile().then(function(p){ S.uid = p.userId; st.innerHTML = '✓ 已連結 LINE（' + (p.displayName || '') + '），預約成功會傳送通知到您的 LINE' + (!S.idToken && !S.accessToken ? '（取得憑證失敗）' : ''); }).catch(function(e){ st.textContent = '已登入 LINE，但讀取個人資料失敗：' + (e && e.message || e); });
+  }).catch(function(e){ st.textContent = 'LINE 連線失敗（' + (e && e.message || e) + '），仍可預約但不會收到 LINE 通知。'; });
 })();
 
 // ===== 設定載入 =====
@@ -190,7 +192,7 @@ function setAllergy(yes){ $('al-no').classList.toggle('on', !yes); $('al-yes').c
 function birthTidy(){ var el = $('b-birth'), v = el.value.replace(/\D/g, ''); if (v.length === 7) el.value = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) el.value = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4); }
 function formData() {
   birthTidy();
-  return { clinicCode: $('b-clinic').value, name: $('b-name').value.trim(), pid: $('b-pid').value.trim(), birth: $('b-birth').value.trim(), phone: $('b-phone').value.trim(), address: $('b-address').value.trim(), allergy: $('al-yes').classList.contains('on') ? ($('b-allergy').value.trim() || '有') : '無', hp: $('hp').value, idToken: S.idToken };
+  return { clinicCode: $('b-clinic').value, name: $('b-name').value.trim(), pid: $('b-pid').value.trim(), birth: $('b-birth').value.trim(), phone: $('b-phone').value.trim(), address: $('b-address').value.trim(), allergy: $('al-yes').classList.contains('on') ? ($('b-allergy').value.trim() || '有') : '無', hp: $('hp').value, idToken: S.idToken, accessToken: S.accessToken };
 }
 function checkFirst() {
   var f = formData(); showErr('b-err', '');
