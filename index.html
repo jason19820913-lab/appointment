@@ -1041,11 +1041,11 @@ function renderList() {
   });
   var k = { total:S.list.length, phone:0, revisit:0, done:0, pend:0, cancel:0, late:0 };
   S.list.forEach(function(b) {
-    if (b.type === '回診預約') k.revisit++; else k.phone++;
+    if (b.type === '回診預約') k.revisit++; else if (b.type === '網路預約') k.web = (k.web || 0) + 1; else k.phone++;
     if (b.status === '已報到') k.done++; else if (/取消/.test(b.status)) k.cancel++; else { k.pend++; if (b.status === '未回診' || lateMinutes(b) > 0) k.late++; }
   });
   document.getElementById('li-kpi').innerHTML =
-    '<div class="k"><small>今日預約</small><b>' + k.total + '</b><div class="d">電話 ' + k.phone + ' · 回診 ' + k.revisit + '</div></div>' +
+    '<div class="k"><small>今日預約</small><b>' + k.total + '</b><div class="d">電話 ' + k.phone + ' · 回診 ' + k.revisit + (k.web ? ' · 網路 ' + k.web : '') + '</div></div>' +
     '<div class="k g"><small>已報到</small><b>' + k.done + '</b></div>' +
     '<div class="k"><small>尚未報到</small><b>' + k.pend + '</b></div>' +
     '<div class="k r"><small>已取消（LINE / 電話）</small><b>' + k.cancel + '</b></div>' +
@@ -1073,7 +1073,7 @@ function renderList() {
       var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>' + noticeTag(b);
       ops = '<button class="obtn red" onclick="openEdit(' + i + ')">改約</button> ' + ops.replace('<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ', '');
     }
-    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
@@ -1261,7 +1261,7 @@ function loadStats() {
     if (d.error) return toast(d.error, 'err');
     var s = d.summary; var base = s.total - s.cancelLine - s.cancelPhone; var rate = base ? Math.round(s.checked / base * 100) : 0;
     document.getElementById('st-kpi').innerHTML =
-      kpi('預約總數', s.total) + kpi('電話預約', s.phone) + kpi('回診預約', s.revisit) + kpi('已報到', s.checked, true) + kpi('報到率', rate + '%', true) +
+      kpi('預約總數', s.total) + kpi('電話預約', s.phone) + (s.web ? kpi('網路初診', s.web) : '') + kpi('回診預約', s.revisit) + kpi('已報到', s.checked, true) + kpi('報到率', rate + '%', true) +
       kpi('待報到', s.pending) + kpi('取消（LINE）', s.cancelLine) + kpi('取消（電話）', s.cancelPhone) + kpi('未回診', s.noShow) + kpi('LINE 已提醒', s.pushed) + kpi('LINE 確認會來', s.confirmed);
     document.getElementById('st-clinic-body').innerHTML = tableRows(d.byClinic);
     document.getElementById('st-doc-body').innerHTML = tableRows(d.byDoctor);
