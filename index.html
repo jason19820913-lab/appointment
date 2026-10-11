@@ -196,6 +196,8 @@ table.lt{min-width:1040px}
 .es.full{background:var(--grey-l);color:var(--mut);cursor:not-allowed;border-color:var(--grey-l)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid-nc{display:grid;grid-template-columns:1.7fr 1fr;gap:12px}
+.slot.qfull{opacity:.45;background:repeating-linear-gradient(135deg,#fff,#fff 6px,#F3F6F4 6px,#F3F6F4 12px);cursor:not-allowed}.slot.qfull::after{content:'額度已滿';display:block;font-size:11px;color:var(--red);font-weight:700}
+.seg.cats{grid-template-columns:repeat(4,1fr)}.seg.cats button{font-size:13px;padding:9px 4px}
 .md{max-width:560px}
 /* 名單 / 統計 / 醫師 */
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
@@ -312,6 +314,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="card">
         <h3 class="step step-row">STEP 4 <span>· 預約方式與民眾資料</span><button type="button" class="clearbtn" onclick="clearPatient()" title="清空姓名、身分證、生日、電話、備註">✕ 一鍵清空</button></h3>
         <div class="seg" id="b-type"><button class="on" onclick="setType('電話預約',this)">電話預約</button><button onclick="setType('回診預約',this)">回診預約</button></div>
+        <div class="fld" style="margin-top:10px"><label>類別（各醫師每時段額度分開計）</label><div class="seg cats" id="b-cat"><button onclick="setCat('健保初診',this)">健保初診</button><button class="on" onclick="setCat('健保複診',this)">健保複診</button><button onclick="setCat('減重初診',this)">減重初診</button><button onclick="setCat('減重複診',this)">減重複診</button></div></div>
         <div class="hint" style="margin:-4px 0 6px">姓名／身分證／生日／電話／病歷號 任一欄輸入即比對本院區就診名單與 LINE 綁定，點選後四欄自動帶齊</div>
         <div class="grid-nc">
           <div class="fld ac"><label>姓名</label><input id="b-name" placeholder="輸入姓名…" onkeydown="if(event.key==='Enter')acEnter()" autocomplete="off" oninput="acInput('name',this.value);renderSummary()" onfocus="acInput('name',this.value)" onblur="acBlur()"><div class="acl hidden" id="acl"></div></div>
@@ -406,6 +409,8 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
         <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">伺服器抓取（備用）</button>
       </div>
       <div class="tw"><table><thead><tr><th>院區</th><th>醫師</th><th>來源</th><th>狀態</th><th>最後同步</th><th>操作</th></tr></thead><tbody id="dc-body"></tbody></table></div>
+      <h3 class="step" style="margin-top:26px">每時段額度 <span id="q-clinic-name"></span> <span style="font-weight:400;color:var(--mut);font-size:13px">· 每位醫師每個時段可收人數，四類分開計；「院區預設」套用到未個別設定的醫師與「不指定醫師」。空白＝用設定表預設（初診 1、複診＝每時段上限）。民眾網路預約只吃「健保初診」額度。</span></h3>
+      <div class="tw"><table><thead><tr><th>醫師</th><th>健保初診</th><th>健保複診</th><th>減重初診</th><th>減重複診</th><th></th></tr></thead><tbody id="q-body"><tr><td colspan="6" class="empty">載入中…</td></tr></tbody></table></div>
     </div>
   </section>
 </main>
@@ -731,6 +736,7 @@ function localSlots(code) {
 }
 function renderSlots(d, fromCache) {
   var keep = S.slot; // 背景更新時保留已選時段
+  if (!d.skeleton) S.slotData = d; // 額度計算用（used／quotas）
   {
     d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (!s.end) s.end = p2(Math.floor((s.min + 60) / 60)) + ':' + p2((s.min + 60) % 60); if (!s.label) s.label = s.key + '-' + s.end; });
     var groups = [ { t:'上午診', k:'早', f:function(m){ return m < 12 * 60; } }, { t:'下午診', k:'午', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', k:'晚', f:function(m){ return m >= 18 * 60; } } ];
@@ -772,13 +778,14 @@ function applyDoctorFilter() {
   var doc = document.getElementById('b-doctor').value, code = document.getElementById('b-clinic').value;
   var sched = (S.sched && S.schedKey === code + '|' + S.date) ? S.sched : null;
   var slots = document.querySelectorAll('#slots .slot'); var note = document.getElementById('doc-slot-note');
-  if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { slots.forEach(function(el){ el.classList.remove('off'); }); if (note) note.remove(); return; }
+  var qGrey = function(el){ var qi = quotaInfo(el.dataset.k); var qf = !!(qi && qi.left <= 0 && !el.classList.contains('past')); el.classList.toggle('qfull', qf); el.title = qi ? (S.cat + '：已約 ' + qi.used + ' / 額度 ' + qi.quota + (qf ? '（已滿）' : '')) : ''; return qf; };
+  if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { slots.forEach(function(el){ el.classList.remove('off'); qGrey(el); }); if (note) note.remove(); renderSummary(); return; }
   var nd = normDoc(doc), ranges = [];
   ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
   var offCount = 0, onCount = 0;
   slots.forEach(function(el) {
     var m = +el.dataset.m; var ok = ranges.some(function(r){ return m < r[1] && m + 60 > r[0]; });
-    el.classList.toggle('off', !ok); if (ok) onCount++; else offCount++;
+    el.classList.toggle('off', !ok); if (ok) onCount++; else offCount++; qGrey(el);
     if (!ok && el.classList.contains('on')) { el.classList.remove('on'); el.querySelector('small').textContent = el.dataset.c; S.slot = ''; S.slotLabel = ''; toast('原選時段不在 ' + shortDoc(doc) + ' 醫師的班表內，已取消選取', ''); }
   });
   var host = document.getElementById('slots'); if (!note) { note = document.createElement('div'); note.id = 'doc-slot-note'; note.className = 'docnote'; var src = host.querySelector('.schedsrc'); if (src && src.nextSibling) host.insertBefore(note, src.nextSibling); else host.insertBefore(note, host.firstChild); }
@@ -790,6 +797,7 @@ function pickSlot(el, full, past) {
   if (past) { toast('此時段已經過了，無法預約', 'err'); return; }
   if (el.classList.contains('off')) { toast('依官網班表，' + shortDoc(document.getElementById('b-doctor').value) + ' 醫師此時段沒有看診；請改選其他時段，或將醫師改為「不指定」', 'err'); return; }
   if (full) { toast('此時段已額滿', 'err'); return; }
+  if (el.classList.contains('qfull')) { var qi = quotaInfo(el.dataset.k); toast((docQKey(document.getElementById('b-doctor').value) === '*' ? '不指定醫師' : shortDoc(document.getElementById('b-doctor').value) + ' 醫師') + ' 此時段「' + S.cat + '」額度已滿（' + qi.used + '/' + qi.quota + '），請改選其他時段、醫師或類別', 'err'); return; }
   document.querySelectorAll('.slot.on').forEach(function(s){ s.classList.remove('on'); s.querySelector('small').textContent = s.dataset.c; });
   el.classList.add('on'); el.querySelector('small').textContent = el.dataset.c + ' · 已選取';
   S.slot = el.dataset.k; S.slotLabel = el.dataset.l; renderDoctorSelect(); renderSummary();
@@ -797,6 +805,11 @@ function pickSlot(el, full, past) {
 
 // ==================== STEP 4 ====================
 function setType(t, btn) { S.type = t; document.querySelectorAll('#b-type button').forEach(function(b){ b.classList.toggle('on', b === btn); }); renderSummary(); }
+var CATS = ['健保初診', '健保複診', '減重初診', '減重複診']; S.cat = '健保複診';
+function setCat(c, btn) { S.cat = c; document.querySelectorAll('#b-cat button').forEach(function(b){ b.classList.toggle('on', btn ? b === btn : b.textContent === c); }); applyDoctorFilter(); renderSummary(); }
+// 額度：所選醫師／類別在某時段是否已滿（用 getSlots 回傳的 used／quotas）
+function docQKey(d) { d = String(d || '').trim(); return (!d || /不指定/.test(d)) ? '*' : normDoc(d); }
+function quotaInfo(slotKey) { var d = S.slotData; if (!d || !d.quotas) return null; var dk = docQKey(document.getElementById('b-doctor').value), q = (d.quotas[dk] || d.quotas['*'] || {})[S.cat]; if (q === undefined) return null; var u = ((d.used || {})[slotKey] || {})[dk + '|' + S.cat] || 0; return { used: u, quota: q, left: q - u }; }
 
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
 var DIR_REFRESH_MS = 120000;
@@ -922,12 +935,12 @@ function pidHint() {
 function renderSummary() {
   var doc = document.getElementById('b-doctor').value, name = document.getElementById('b-name').value.trim(), pid = document.getElementById('b-pid').value.trim();
   function row(k, v) { return '<div class="kv"><span>' + k + '</span><b' + (v ? '' : ' class="dim"') + '>' + (v || '—') + '</b></div>'; }
-  document.getElementById('sum').innerHTML = row('方式', S.type) + row('院區', clinicName()) + row('日期', dateTxt(S.date)) + row('時段', S.slotLabel) + row('醫師', doc) + row('民眾', name ? esc(name) + (pid.length === 10 ? '　' + mask(pid) : '') : '');
+  document.getElementById('sum').innerHTML = row('方式', S.type + '｜' + S.cat) + row('院區', clinicName()) + row('日期', dateTxt(S.date)) + row('時段', S.slotLabel) + row('醫師', doc) + row('民眾', name ? esc(name) + (pid.length === 10 ? '　' + mask(pid) : '') : '');
 }
 
 function submitBooking() {
   var p = { action:'createBooking', clinicCode:document.getElementById('b-clinic').value, date:S.date, slot:S.slot, doctor:document.getElementById('b-doctor').value,
-            name:document.getElementById('b-name').value.trim(), pid:document.getElementById('b-pid').value.trim(), type:S.type, note:document.getElementById('b-note').value.trim(), phone:document.getElementById('b-phone').value.trim(), chartNo:document.getElementById('b-chart').value.trim() };
+            name:document.getElementById('b-name').value.trim(), pid:document.getElementById('b-pid').value.trim(), type:S.type, cat:S.cat, note:document.getElementById('b-note').value.trim(), phone:document.getElementById('b-phone').value.trim(), chartNo:document.getElementById('b-chart').value.trim() };
   if (S.pendingOrder && S.pendingOrder.pid === p.pid) p.pendingId = S.pendingOrder.orderId; // 由待排回診排入 → 讓後端回寫「已排」
   if (!p.clinicCode) return toast('請選擇院區', 'err');
   if (p.phone && !/^\d{7,12}$/.test(p.phone)) return toast('電話號碼格式不正確', 'err');
@@ -1073,7 +1086,7 @@ function renderList() {
       var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>' + noticeTag(b);
       ops = '<button class="obtn red" onclick="openEdit(' + i + ')">改約</button> ' + ops.replace('<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ', '');
     }
-    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + (b.cat ? '<br><small style="color:var(--mut)">' + esc(b.cat) + '</small>' : '') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
@@ -1097,7 +1110,7 @@ function openDetail(i) {
   if (b.status === '已報到') acts += '<button class="btn sec" onclick="opCheck(' + i + ',true);closeModal()">取消報到</button>';
   if (cancelled) acts += '<button class="btn sec" onclick="opRestore(' + i + ')">復原預約</button> <button class="btn" onclick="fillFrom(' + i + ')">候補遞補</button>';
   openModal('<h3>' + esc(b.name) + '　<span style="font-size:14px;color:var(--mut);font-weight:400">' + b.id + '</span></h3>' +
-    '<div class="kv">' + kv('院區', esc(b.clinicName) + '院區') + kv('日期時段', b.date + '　' + b.slot) + kv('醫師', esc(b.doctor)) + kv('身分證', b.pidMasked) + kv('出生年月日', b.birth ? esc(b.birth) + '（民國）' : '') + kv('病歷號', b.chartNo ? esc(b.chartNo) : '') + kv('電話', b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(fmtPhone(b.phone)) + '</a>' : '') + kv('方式', b.type) + kv('狀態', b.status) +
+    '<div class="kv">' + kv('院區', esc(b.clinicName) + '院區') + kv('日期時段', b.date + '　' + b.slot) + kv('醫師', esc(b.doctor)) + kv('身分證', b.pidMasked) + kv('出生年月日', b.birth ? esc(b.birth) + '（民國）' : '') + kv('病歷號', b.chartNo ? esc(b.chartNo) : '') + kv('電話', b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(fmtPhone(b.phone)) + '</a>' : '') + kv('方式', b.type + (b.cat ? '｜' + b.cat : '')) + kv('狀態', b.status) +
     kv('LINE', b.bound ? ((b.lineReply ? '回覆：' + b.lineReply + ' ' + (b.lineReplyAt || '').slice(5) : (b.pushed ? '已提醒 ' + b.pushed.slice(5) + '，未回覆' : '已綁定，尚未提醒'))) : '未綁定') +
     kv('建立', esc(b.createdBy) + ' ' + b.created) + (b.checkedAt ? kv('報到', b.checkedAt.slice(5) + ' ' + esc(b.checkedBy)) : '') + (b.cancelAt ? kv('取消', b.cancelAt.slice(5) + ' ' + esc(b.cancelBy)) : '') + kv('備註', esc(b.note)) + '</div>' +
     (b.phone ? '' : '<div class="note plain" style="margin-top:6px">此筆未留電話；可按「修改」補登，或以院所掛號系統查詢。</div>') +
@@ -1106,7 +1119,7 @@ function openDetail(i) {
 // 修改預約：改日期／時段／醫師／方式／備註，時段以即時限額顯示，額滿不可選
 function openEdit(i) {
   var b = S.view[i]; if (!b) return;
-  S.edit = { b: b, date: b.date, slot: b.slot, type: b.type };
+  S.edit = { b: b, date: b.date, slot: b.slot, type: b.type, cat: b.cat || '健保複診' };
   var docs = S.doctors.filter(function(d){ return d.clinicCode === b.clinicCode; }).map(function(d){ return d.name; });
   if (docs.indexOf(b.doctor) < 0 && b.doctor !== '不指定醫師') docs.unshift(b.doctor);
   openModal('<h3>修改預約　<span style="font-size:14px;color:var(--mut);font-weight:400">' + esc(b.name) + '　' + b.pidMasked + '　' + esc(b.clinicName) + '院區</span></h3>' +
@@ -1114,6 +1127,7 @@ function openEdit(i) {
     '<div class="fld"><label>時段 <span id="e-cap" style="color:var(--mut);font-size:13px"></span></label><div id="e-slots" class="eslots"><div class="empty" style="padding:14px 0">載入中…</div></div></div>' +
     '<div class="grid2"><div class="fld"><label>醫師 <span id="e-docnote" style="color:var(--mut);font-size:12px;font-weight:400"></span></label><select id="e-doctor" onchange="editApplyDoctor()"><option value="不指定醫師">不指定醫師</option>' + docs.map(function(n){ return '<option' + (n === b.doctor ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>方式</label><div class="seg" style="margin:0;grid-template-columns:1fr 1fr" id="e-type"><button class="' + (b.type === '電話預約' ? 'on' : '') + '" onclick="editType(\'電話預約\',this)" style="padding:12px;font-size:15px">電話預約</button><button class="' + (b.type === '回診預約' ? 'on' : '') + '" onclick="editType(\'回診預約\',this)" style="padding:12px;font-size:15px">回診預約</button></div></div></div>' +
+    '<div class="fld"><label>類別</label><div class="seg cats" id="e-cat">' + CATS.map(function(c){ return '<button class="' + ((b.cat || '健保複診') === c ? 'on' : '') + '" onclick="editCat(\'' + c + '\',this)">' + c + '</button>'; }).join('') + '</div></div>' +
     '<div class="grid2"><div class="fld"><label>電話</label><input id="e-phone" type="tel" inputmode="numeric" maxlength="12" value="' + esc(b.phone || '') + '" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div><div class="fld"><label>出生年月日（民國）</label><input id="e-birth" inputmode="numeric" maxlength="10" placeholder="068/09/13" value="' + esc(b.birth || '') + '" oninput="this.value=this.value.replace(/[^0-9\\/]/g,\'\')"></div></div>' +
     '<div class="fld"><label>備註</label><input id="e-note" value="' + esc(b.note) + '"></div>' +
     '<div class="note plain" id="e-msg" style="display:none"></div>' +
@@ -1121,6 +1135,7 @@ function openEdit(i) {
   editLoadSlots();
 }
 function editType(t, btn) { S.edit.type = t; document.querySelectorAll('#e-type button').forEach(function(x){ x.classList.toggle('on', x === btn); }); }
+function editCat(c, btn) { S.edit.cat = c; document.querySelectorAll('#e-cat button').forEach(function(x){ x.classList.toggle('on', x === btn); }); }
 function editLoadSlots() {
   var b = S.edit.b, date = document.getElementById('e-date').value; S.edit.date = date;
   var box = document.getElementById('e-slots'); box.innerHTML = '<div class="empty" style="padding:14px 0">載入中…</div>';
@@ -1180,7 +1195,7 @@ function editPick(key, full, cnt, cap) {
 }
 function saveEdit() {
   var b = S.edit.b; if (!S.edit.slot) return toast('請選擇時段', 'err');
-  get({ action:'updateBooking', id:b.id, date:S.edit.date, slot:S.edit.slot, doctor:document.getElementById('e-doctor').value, type:S.edit.type, note:document.getElementById('e-note').value.trim(), phone:document.getElementById('e-phone').value.trim(), birth:document.getElementById('e-birth').value.trim() }, function(d) {
+  get({ action:'updateBooking', id:b.id, date:S.edit.date, slot:S.edit.slot, doctor:document.getElementById('e-doctor').value, type:S.edit.type, cat:S.edit.cat, note:document.getElementById('e-note').value.trim(), phone:document.getElementById('e-phone').value.trim(), birth:document.getElementById('e-birth').value.trim() }, function(d) {
     if (d.error) { var msg = document.getElementById('e-msg'); msg.style.display = 'block'; msg.style.color = 'var(--red)'; msg.innerHTML = '⚠️ ' + esc(d.error); if (d.full) editLoadSlots(); return; }
     toast('已修改' + (d.moved ? '，LINE 提醒將依新時段重新發送' : ''), 'ok'); closeModal(); loadList();
   }, document.getElementById('e-save'));
@@ -1284,6 +1299,24 @@ function buildBookmarklet() {
   var a = document.getElementById('bm'); a.setAttribute('href', 'javascript:' + encodeURIComponent(code));
   a.onclick = function(e){ e.preventDefault(); toast('請把這顆按鈕「拖曳」到瀏覽器書籤列，再到官網頁面點它', ''); };
 }
+function loadQuotas() {
+  var code = document.getElementById('dc-clinic').value || S.user.clinicCode || (S.clinics[0] || {}).code; var body = document.getElementById('q-body'); if (!code) { body.innerHTML = '<tr><td colspan="6" class="empty">請先選擇院區</td></tr>'; return; }
+  var cn = (S.clinics.filter(function(c){ return c.code === code; })[0] || {}).name || ''; var qh = document.getElementById('q-clinic-name'); if (qh) qh.textContent = cn ? '（' + cn + '院區）' : '';
+  get({ action:'getQuotas', clinicCode: code }, function(d) {
+    if (d.error) { body.innerHTML = '<tr><td colspan="6" class="empty">' + esc(d.error) + '</td></tr>'; return; }
+    S.quota = d; var canEdit = S.multi;
+    var rows = [{ key:'*', name:'院區預設（含不指定醫師）' }].concat(S.docList.filter(function(x){ return x.active && x.clinicCode === code; }).map(function(x){ return { key: normDoc(x.name), name: x.name }; }));
+    body.innerHTML = rows.map(function(r) {
+      var raw = d.raw[r.key] || {}, eff = d.effective[r.key] || d.effective['*'] || {};
+      return '<tr' + (r.key === '*' ? ' style="background:var(--teal-l)"' : '') + '><td><b>' + esc(r.name) + '</b></td>' + d.cats.map(function(c){ var v = raw[c] === null || raw[c] === undefined ? '' : raw[c]; return '<td><input type="number" min="0" max="99" class="qin" data-k="' + esc(r.key) + '" data-c="' + c + '" value="' + v + '" placeholder="' + (eff[c] != null ? eff[c] : '') + '" style="width:72px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center"' + (canEdit ? '' : ' disabled') + '></td>'; }).join('') + '<td>' + (canEdit ? '<button class="btn sm" onclick="saveQuota(\'' + esc(r.key) + '\',\'' + esc(r.name) + '\',this)">儲存</button>' : '<span class="pid">僅管理團隊／區經理可改</span>') + '</td></tr>';
+    }).join('');
+  });
+}
+function saveQuota(key, name, btn) {
+  var p = { action:'setQuota', clinicCode: document.getElementById('dc-clinic').value || S.user.clinicCode || (S.clinics[0] || {}).code, doctor: key === '*' ? '*' : name };
+  document.querySelectorAll('.qin[data-k="' + key + '"]').forEach(function(i){ p[i.dataset.c] = i.value.trim(); });
+  get(p, function(d){ if (d.error) return toast(d.error, 'err'); toast('額度已更新', 'ok'); S.slotCache = {}; loadQuotas(); }, btn);
+}
 function loadDoctors() {
   buildBookmarklet();
   get({ action:'getDoctors', clinicCode:document.getElementById('dc-clinic').value }, function(d) {
@@ -1292,6 +1325,7 @@ function loadDoctors() {
     document.getElementById('dc-body').innerHTML = d.doctors.map(function(x, i) {
       return '<tr' + (x.active ? '' : ' class="done"') + '><td>' + esc(x.clinicName) + '</td><td><b>' + esc(x.name) + '</b></td><td>' + (x.source === '官網' ? '<span class="tag blue">官網</span>' : '<span class="tag amb">手動</span>') + '</td><td>' + (x.active ? '<span class="tag ok">啟用</span>' : '<span class="tag no">停用</span>') + '</td><td><small>' + x.synced + '</small></td><td><button class="btn sm sec" onclick="toggleDoctor(' + i + ')">' + (x.active ? '停用' : '啟用') + '</button></td></tr>';
     }).join('') || '<tr><td colspan="6" class="empty">尚無醫師，請按「立即同步官網」</td></tr>';
+    loadQuotas();
   });
 }
 function toggleDoctor(i) { var x = S.docList[i]; if (!x) return; get({ action:'setDoctor', mode:'toggle', row:x.row, clinicCode:x.clinicCode }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已更新', 'ok'); loadDoctors(); refreshInit(); }); }
