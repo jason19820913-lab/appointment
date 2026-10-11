@@ -106,7 +106,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
 .slot b{display:block;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .slot small{display:block;color:var(--mut);font-size:13px;white-space:nowrap}
-.slot .qline{display:block;font-size:12px;color:var(--teal);white-space:nowrap}.slot .qline b{display:inline;font-size:12px}.slot .qline.low{color:var(--amb)}.slot.qfull .qline{color:var(--red)}.slot.past .qline,.slot.full .qline{color:var(--mut)}
+.slot .qline{display:block;font-size:11.5px;line-height:1.55;color:#4A6A60;white-space:nowrap;text-align:left;padding:0 2px}.slot .qline em{font-style:normal;color:var(--mut);margin-right:4px}.slot .qline i{font-style:normal;margin-right:7px}.slot .qline i.on{font-weight:700;color:var(--teal);text-decoration:underline;text-underline-offset:2px}.slot .qline i.lo{color:var(--amb)}.slot .qline i.x{color:var(--red)}.slot.on .qline{color:var(--teal)}.slot.past .qline,.slot.full .qline{color:var(--mut)}.slot.past .qline i,.slot.full .qline i{color:var(--mut)}
 .slot .who{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:12px;line-height:1.5;color:#3E5A52;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot.on .who{color:var(--teal);border-top-color:var(--teal-b)}.slot.past .who{color:#98A5A0}.slot.full .who{color:var(--mut)}
 .slot.has{justify-content:flex-start}
@@ -781,7 +781,7 @@ function applyDoctorFilter() {
   var slots = document.querySelectorAll('#slots .slot'); var note = document.getElementById('doc-slot-note');
   var qGrey = function(el){ var qi = quotaInfo(el.dataset.k); var qf = !!(qi && qi.left <= 0 && !el.classList.contains('past')); el.classList.toggle('qfull', qf); el.title = qi ? (S.cat + '：已約 ' + qi.used + ' / 額度 ' + qi.quota + (qf ? '（已滿）' : '')) : '';
     var qe = el.querySelector('.qline'); if (!qe) { qe = document.createElement('span'); qe.className = 'qline'; var sm = el.querySelector('small'); if (sm && sm.nextSibling) el.insertBefore(qe, sm.nextSibling); else el.appendChild(qe); }
-    qe.innerHTML = qi ? esc(S.cat) + ' <b>' + qi.used + '/' + qi.quota + '</b>' + (qf ? '' : '（剩 ' + qi.left + '）') : ''; qe.classList.toggle('low', !!(qi && qi.left > 0 && qi.left <= 1)); return qf; };
+    qe.innerHTML = qi ? quotaLines(el.dataset.k) : ''; qe.classList.toggle('low', !!(qi && qi.left > 0 && qi.left <= 1)); return qf; };
   if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { slots.forEach(function(el){ el.classList.remove('off'); qGrey(el); }); if (note) note.remove(); renderSummary(); return; }
   var nd = normDoc(doc), ranges = [];
   ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
@@ -812,6 +812,12 @@ var CATS = ['健保初診', '健保複診', '減重初診', '減重複診']; S.c
 function setCat(c, btn) { S.cat = c; document.querySelectorAll('#b-cat button').forEach(function(b){ b.classList.toggle('on', btn ? b === btn : b.textContent === c); }); applyDoctorFilter(); renderSummary(); }
 // 額度：所選醫師／類別在某時段是否已滿（用 getSlots 回傳的 used／quotas）
 function docQKey(d) { d = String(d || '').trim(); return (!d || /不指定/.test(d)) ? '*' : normDoc(d); }
+// 時段框內四類額度兩行：健保 初診 0/1・複診 0/3 ／ 減重 初診 0/1・複診 0/3（所選類別加粗、滿的變紅）
+function quotaLines(slotKey) {
+  var d = S.slotData; if (!d || !d.quotas) return ''; var dk = docQKey(document.getElementById('b-doctor').value), qs = d.quotas[dk] || d.quotas['*'] || {}, us = (d.used || {})[slotKey] || {};
+  var one = function(c){ var q = qs[c]; if (q === undefined) return ''; var u = us[dk + '|' + c] || 0, on = c === S.cat; return '<i class="' + (u >= q ? 'x' : (q - u <= 1 ? 'lo' : '')) + (on ? ' on' : '') + '">' + c.replace(/^(健保|減重)/, '') + ' ' + u + '/' + q + '</i>'; };
+  return '<em>健保</em>' + one('健保初診') + one('健保複診') + '<br><em>減重</em>' + one('減重初診') + one('減重複診');
+}
 function quotaInfo(slotKey) { var d = S.slotData; if (!d || !d.quotas) return null; var dk = docQKey(document.getElementById('b-doctor').value), q = (d.quotas[dk] || d.quotas['*'] || {})[S.cat]; if (q === undefined) return null; var u = ((d.used || {})[slotKey] || {})[dk + '|' + S.cat] || 0; return { used: u, quota: q, left: q - u }; }
 
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
