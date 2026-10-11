@@ -106,6 +106,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .slot{min-width:0;border:1px solid var(--line);border-radius:12px;padding:16px 10px 14px;text-align:center;background:#fff;cursor:pointer;transition:.12s;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
 .slot b{display:block;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .slot small{display:block;color:var(--mut);font-size:13px;white-space:nowrap}
+.slot .qline{display:block;font-size:12px;color:var(--teal);white-space:nowrap}.slot .qline b{display:inline;font-size:12px}.slot .qline.low{color:var(--amb)}.slot.qfull .qline{color:var(--red)}.slot.past .qline,.slot.full .qline{color:var(--mut)}
 .slot .who{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:12px;line-height:1.5;color:#3E5A52;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot.on .who{color:var(--teal);border-top-color:var(--teal-b)}.slot.past .who{color:#98A5A0}.slot.full .who{color:var(--mut)}
 .slot.has{justify-content:flex-start}
@@ -409,7 +410,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
         <button class="btn ghost sm" id="dc-sync" style="margin-left:auto" onclick="syncDoctorsNow()">伺服器抓取（備用）</button>
       </div>
       <div class="tw"><table><thead><tr><th>院區</th><th>醫師</th><th>來源</th><th>狀態</th><th>最後同步</th><th>操作</th></tr></thead><tbody id="dc-body"></tbody></table></div>
-      <h3 class="step" style="margin-top:26px">每時段額度 <span id="q-clinic-name"></span> <span style="font-weight:400;color:var(--mut);font-size:13px">· 每位醫師每個時段可收人數，四類分開計；「院區預設」套用到未個別設定的醫師與「不指定醫師」。空白＝用設定表預設（初診 1、複診＝每時段上限）。民眾網路預約只吃「健保初診」額度。</span></h3>
+      <h3 class="step" style="margin-top:26px">每時段額度 <span id="q-clinic-name"></span> <span style="font-weight:400;color:var(--mut);font-size:13px">· 醫師列依官網班表自動帶入（每日檢查班表時自動新增／移除）；每位醫師每個時段可收人數，四類分開計，設定後就跟著該院區＋該醫師，前台時段框會直接顯示。「院區預設」套用到未個別設定的醫師與「不指定醫師」。空白＝用設定表預設（初診 1、複診＝每時段上限）。民眾網路預約只吃「健保初診」額度。</span> <button class="btn ghost sm" style="margin-left:8px" onclick="syncQuotaNow(this)">依班表同步醫師</button></h3>
       <div class="tw"><table><thead><tr><th>醫師</th><th>健保初診</th><th>健保複診</th><th>減重初診</th><th>減重複診</th><th></th></tr></thead><tbody id="q-body"><tr><td colspan="6" class="empty">載入中…</td></tr></tbody></table></div>
     </div>
   </section>
@@ -778,7 +779,9 @@ function applyDoctorFilter() {
   var doc = document.getElementById('b-doctor').value, code = document.getElementById('b-clinic').value;
   var sched = (S.sched && S.schedKey === code + '|' + S.date) ? S.sched : null;
   var slots = document.querySelectorAll('#slots .slot'); var note = document.getElementById('doc-slot-note');
-  var qGrey = function(el){ var qi = quotaInfo(el.dataset.k); var qf = !!(qi && qi.left <= 0 && !el.classList.contains('past')); el.classList.toggle('qfull', qf); el.title = qi ? (S.cat + '：已約 ' + qi.used + ' / 額度 ' + qi.quota + (qf ? '（已滿）' : '')) : ''; return qf; };
+  var qGrey = function(el){ var qi = quotaInfo(el.dataset.k); var qf = !!(qi && qi.left <= 0 && !el.classList.contains('past')); el.classList.toggle('qfull', qf); el.title = qi ? (S.cat + '：已約 ' + qi.used + ' / 額度 ' + qi.quota + (qf ? '（已滿）' : '')) : '';
+    var qe = el.querySelector('.qline'); if (!qe) { qe = document.createElement('span'); qe.className = 'qline'; var sm = el.querySelector('small'); if (sm && sm.nextSibling) el.insertBefore(qe, sm.nextSibling); else el.appendChild(qe); }
+    qe.innerHTML = qi ? esc(S.cat) + ' <b>' + qi.used + '/' + qi.quota + '</b>' + (qf ? '' : '（剩 ' + qi.left + '）') : ''; qe.classList.toggle('low', !!(qi && qi.left > 0 && qi.left <= 1)); return qf; };
   if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { slots.forEach(function(el){ el.classList.remove('off'); qGrey(el); }); if (note) note.remove(); renderSummary(); return; }
   var nd = normDoc(doc), ranges = [];
   ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
@@ -1305,12 +1308,15 @@ function loadQuotas() {
   get({ action:'getQuotas', clinicCode: code }, function(d) {
     if (d.error) { body.innerHTML = '<tr><td colspan="6" class="empty">' + esc(d.error) + '</td></tr>'; return; }
     S.quota = d; var canEdit = S.multi;
-    var rows = [{ key:'*', name:'院區預設（含不指定醫師）' }].concat(S.docList.filter(function(x){ return x.active && x.clinicCode === code; }).map(function(x){ return { key: normDoc(x.name), name: x.name }; }));
+    var rows = [{ key:'*', name:'院區預設（含不指定醫師）', sched:true }].concat(d.doctors || S.docList.filter(function(x){ return x.active && x.clinicCode === code; }).map(function(x){ return { key: normDoc(x.name), name: x.name, sched:true }; }));
     body.innerHTML = rows.map(function(r) {
       var raw = d.raw[r.key] || {}, eff = d.effective[r.key] || d.effective['*'] || {};
-      return '<tr' + (r.key === '*' ? ' style="background:var(--teal-l)"' : '') + '><td><b>' + esc(r.name) + '</b></td>' + d.cats.map(function(c){ var v = raw[c] === null || raw[c] === undefined ? '' : raw[c]; return '<td><input type="number" min="0" max="99" class="qin" data-k="' + esc(r.key) + '" data-c="' + c + '" value="' + v + '" placeholder="' + (eff[c] != null ? eff[c] : '') + '" style="width:72px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center"' + (canEdit ? '' : ' disabled') + '></td>'; }).join('') + '<td>' + (canEdit ? '<button class="btn sm" onclick="saveQuota(\'' + esc(r.key) + '\',\'' + esc(r.name) + '\',this)">儲存</button>' : '<span class="pid">僅管理團隊／區經理可改</span>') + '</td></tr>';
+      return '<tr' + (r.key === '*' ? ' style="background:var(--teal-l)"' : (r.sched ? '' : ' class="done"')) + '><td><b>' + esc(r.name) + '</b>' + (r.key === '*' || r.sched ? '' : ' <span class="tag no" title="官網名單有、目前班表沒有；班表更新後會自動帶入">不在班表</span>') + '</td>' + d.cats.map(function(c){ var v = raw[c] === null || raw[c] === undefined ? '' : raw[c]; return '<td><input type="number" min="0" max="99" class="qin" data-k="' + esc(r.key) + '" data-c="' + c + '" value="' + v + '" placeholder="' + (eff[c] != null ? eff[c] : '') + '" style="width:72px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center"' + (canEdit ? '' : ' disabled') + '></td>'; }).join('') + '<td>' + (canEdit ? '<button class="btn sm" onclick="saveQuota(\'' + esc(r.key) + '\',\'' + esc(r.name) + '\',this)">儲存</button>' : '<span class="pid">僅管理團隊／區經理可改</span>') + '</td></tr>';
     }).join('');
   });
+}
+function syncQuotaNow(btn) {
+  get({ action:'syncQuota', clinicCode: document.getElementById('dc-clinic').value || '' }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已依班表同步：新增 ' + d.added + '、移除 ' + d.removed, 'ok'); loadQuotas(); }, btn);
 }
 function saveQuota(key, name, btn) {
   var p = { action:'setQuota', clinicCode: document.getElementById('dc-clinic').value || S.user.clinicCode || (S.clinics[0] || {}).code, doctor: key === '*' ? '*' : name };
