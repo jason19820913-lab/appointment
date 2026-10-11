@@ -102,7 +102,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="okbox" id="s-who"></div>
       <div style="margin:14px 0 6px;font-size:14px;color:var(--mut)">日期</div>
       <div class="days" id="days"></div>
-      <div style="margin:14px 0 0;font-size:14px;color:var(--mut)">時段（每小時一格，顯示剩餘名額）</div>
+      <div style="margin:14px 0 0;font-size:14px;color:var(--mut)">時段（每小時一格；灰色＝該時段初診已額滿）</div>
       <div class="slots" id="slots"></div>
       <div class="fld" style="margin-top:14px"><label>看診醫師 <b>*</b></label><select id="s-doctor"><option value="">請先選時段</option></select></div>
       <div id="s-err" class="err hidden"></div>
@@ -217,15 +217,16 @@ function loadSlots() {
   api({ action:'pubSlots', clinicCode: $('b-clinic').value }, function(d) {
     if (d.error) return showErr('s-err', d.error);
     S.slots = d; var dates = Object.keys(d.dates);
-    $('days').innerHTML = dates.map(function(k){ var x = d.dates[k], n = x.slots.filter(function(s){ return s.left > 0; }).length; return '<button type="button" class="day' + (n ? '' : ' off') + '" onclick="pickDay(\'' + k + '\')" ' + (n ? '' : 'disabled') + '><small>' + k.slice(5).replace('-', '/') + '</small><b>' + x.weekday + '</b><small>' + (n ? n + ' 時段' : '無診') + '</small></button>'; }).join('');
-    var first = dates.filter(function(k){ return d.dates[k].slots.some(function(s){ return s.left > 0; }); })[0]; if (first) pickDay(first); else $('slots').innerHTML = '<div class="hint">近期沒有可網路預約的時段，請電洽院區。</div>';
+    var avail = function(s){ return !s.full && s.doctors.length > 0; };
+    $('days').innerHTML = dates.map(function(k){ var x = d.dates[k], n = x.slots.filter(avail).length; return '<button type="button" class="day' + (n ? '' : ' off') + '" onclick="pickDay(\'' + k + '\')" ' + (n ? '' : 'disabled') + '><small>' + k.slice(5).replace('-', '/') + '</small><b>' + x.weekday + '</b><small>' + (n ? '可預約' : (x.slots.length ? '已額滿' : '無診')) + '</small></button>'; }).join('');
+    var first = dates.filter(function(k){ return d.dates[k].slots.some(avail); })[0]; if (first) pickDay(first); else $('slots').innerHTML = '<div class="hint">近期沒有可網路預約的時段，請電洽院區。</div>';
   });
 }
 function pickDay(k) {
   S.date = k; S.slot = ''; $('s-btn').disabled = true; $('s-doctor').innerHTML = '<option value="">請先選時段</option>';
   document.querySelectorAll('.day').forEach(function(b){ b.classList.toggle('on', b.getAttribute('onclick').indexOf(k) >= 0); });
   var x = S.slots.dates[k];
-  $('slots').innerHTML = x.slots.map(function(s){ return '<button type="button" class="slot' + (s.left ? '' : ' full') + '" ' + (s.left ? 'onclick="pickSlot(\'' + s.key + '\')"' : 'disabled') + '><b>' + s.key + '</b><small>' + (s.left ? '剩 ' + s.left + ' 名' : '額滿') + '</small></button>'; }).join('') || '<div class="hint">此日無開放時段</div>';
+  $('slots').innerHTML = x.slots.map(function(s){ var ok = !s.full && s.doctors.length > 0; return '<button type="button" class="slot' + (ok ? '' : ' full') + '" ' + (ok ? 'onclick="pickSlot(\'' + s.key + '\')"' : 'disabled') + '><b>' + s.key + '</b><small>' + (ok ? s.label.split('～')[1] ? '～' + s.label.split('～')[1] : '' : '已額滿') + '</small></button>'; }).join('') || '<div class="hint">此日無開放時段</div>';
 }
 function pickSlot(key) {
   S.slot = key; document.querySelectorAll('.slot').forEach(function(b){ b.classList.toggle('on', b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + key + "'") >= 0); });
