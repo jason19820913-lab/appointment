@@ -43,7 +43,7 @@ h2{font-size:18px;margin:0 0 14px}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><img src="https://jason19820913-lab.github.io/drking/logo.png" alt="" onerror="this.style.display='none'"><div><b>金鶯診所 Elite Clinic</b><small>初診網路預約（健保門診）</small></div></div>
+  <div class="top"><img src="https://jason19820913-lab.github.io/drking/logo.png" alt="" onerror="this.style.display='none'"><div><b>金鶯診所 Elite Clinic</b><small>初診網路預約（健保門診）・本服務目前僅開放初診預約</small></div></div>
 
   <!-- 首頁 -->
   <div id="v-home">
@@ -59,7 +59,7 @@ h2{font-size:18px;margin:0 0 14px}
   <div id="v-query" class="hidden">
     <div class="card"><h2>查詢是否可網路預約</h2>
       <div class="fld"><label>院區 <b>*</b></label><select id="q-clinic"></select></div>
-      <div class="fld"><label>姓名 <b>*</b></label><input id="q-name" placeholder="請輸入姓名" maxlength="20"></div>
+      <div class="fld"><label>姓名 <b>*</b></label><input id="q-name" name="name" autocomplete="name" placeholder="請輸入姓名" maxlength="20"></div>
       <div class="fld"><label>身分證字號 <b>*</b></label><input id="q-pid" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"></div>
       <div id="q-err" class="err hidden"></div>
       <button class="btn" id="q-btn" onclick="doQuery()">查詢</button>
@@ -70,23 +70,23 @@ h2{font-size:18px;margin:0 0 14px}
 
   <!-- 預約：基本資料 -->
   <div id="v-book" class="hidden">
-    <div class="card"><h2>第 1 步．基本資料</h2>
+    <form class="card" id="b-form" autocomplete="on" onsubmit="return false"><h2>第 1 步．基本資料</h2>
       <div class="fld"><label>院區 <b>*</b></label><select id="b-clinic" onchange="S.slots=null"></select></div>
-      <div class="fld"><label>姓名 <b>*</b></label><input id="b-name" placeholder="請輸入本名" maxlength="20"></div>
-      <div class="fld"><label>身分證字號 <b>*</b></label><input id="b-pid" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"></div>
+      <div class="fld"><label>姓名 <b>*</b></label><input id="b-name" name="name" autocomplete="name" placeholder="請輸入本名" maxlength="20"></div>
+      <div class="fld"><label>身分證字號 <b>*</b></label><input id="b-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"></div>
       <div class="row2">
-        <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="b-birth" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy()"><div class="hint">例：68年9月13日 → 0680913</div></div>
-        <div class="fld"><label>手機號碼 <b>*</b></label><input id="b-phone" type="tel" inputmode="numeric" placeholder="0912345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+        <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="b-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy()"><div class="hint">例：68年9月13日 → 0680913</div></div>
+        <div class="fld"><label>手機號碼 <b>*</b></label><input id="b-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
       </div>
-      <div class="fld"><label>通訊地址 <b>*</b></label><input id="b-address" placeholder="例：新北市鶯歌區國慶街167號" maxlength="100"></div>
+      <div class="fld"><label>通訊地址 <b>*</b></label><input id="b-address" name="address" autocomplete="street-address" placeholder="例：新北市鶯歌區國慶街167號" maxlength="100"></div>
       <div class="fld"><label>是否有藥物過敏 <b>*</b></label>
         <div class="seg"><button type="button" id="al-no" class="on" onclick="setAllergy(false)">無</button><button type="button" id="al-yes" onclick="setAllergy(true)">有</button></div>
         <input id="b-allergy" class="hidden" style="margin-top:8px" placeholder="請填寫過敏藥物名稱" maxlength="100"></div>
       <input id="hp" class="hp" tabindex="-1" autocomplete="off">
       <div id="b-err" class="err hidden"></div>
-      <button class="btn" id="b-next" onclick="checkFirst()">下一步：選擇日期時段</button>
+      <button type="button" class="btn" id="b-next" onclick="checkFirst()">下一步：選擇日期時段</button>
       <a class="link" href="#" onclick="go('home');return false">← 回首頁</a>
-    </div>
+    </form>
   </div>
 
   <!-- 預約：非初診 -->
@@ -157,7 +157,11 @@ function api(params, cb, btn, txt) {
     S.inLine = liff.isInClient();
     if (!liff.isLoggedIn()) { if (S.inLine) { liff.login(); return; } st.textContent = '提示：從金鶯診所 LINE 官方帳號開啟本頁並登入，預約後可收到 LINE 提醒。'; return; }
     S.idToken = liff.getIDToken() || ''; S.accessToken = liff.getAccessToken() || '';
-    liff.getProfile().then(function(p){ S.uid = p.userId; st.innerHTML = '✓ 已連結 LINE（' + (p.displayName || '') + '），預約成功會傳送通知到您的 LINE' + (!S.idToken && !S.accessToken ? '（取得憑證失敗）' : ''); }).catch(function(e){ st.textContent = '已登入 LINE，但讀取個人資料失敗：' + (e && e.message || e); });
+    var okMsg = function(name){ st.innerHTML = '✓ 已連結 LINE' + (name ? '（' + name + '）' : '') + '，預約成功會傳送通知到您的 LINE'; };
+    var ctx = null; try { ctx = liff.getContext(); } catch (e) {} if (ctx && ctx.userId) S.uid = ctx.userId;
+    if (!S.idToken && !S.accessToken) { st.textContent = '已登入 LINE，但未取得憑證，預約仍可送出，LINE 通知可能無法綁定。'; return; }
+    liff.getProfile().then(function(p){ S.uid = p.userId; okMsg(p.displayName); if (p.displayName && !$('b-name').value) $('b-name').placeholder = '請輸入本名（LINE 名稱：' + p.displayName + '）'; })
+      .catch(function(e){ okMsg(''); console.warn('getProfile', e); }); // profile scope 未勾也不影響：後端用 idToken／accessToken 向 LINE 驗證綁定
   }).catch(function(e){ st.textContent = 'LINE 連線失敗（' + (e && e.message || e) + '），仍可預約但不會收到 LINE 通知。'; });
 })();
 
@@ -189,7 +193,8 @@ function prefill(){ $('b-clinic').value = $('q-clinic').value; $('b-name').value
 
 // ===== 預約：第 1 步 =====
 function setAllergy(yes){ $('al-no').classList.toggle('on', !yes); $('al-yes').classList.toggle('on', yes); $('b-allergy').classList.toggle('hidden', !yes); if (!yes) $('b-allergy').value = ''; }
-function birthTidy(){ var el = $('b-birth'), v = el.value.replace(/\D/g, ''); if (v.length === 7) el.value = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) el.value = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4); }
+function phoneTidy(el){ var v = String(el.value || '').replace(/^\+?886/, '0').replace(/[^0-9]/g, ''); if (v.length > 10) v = v.slice(0, 10); if (el.value !== v) el.value = v; }
+function birthTidy(){ var el = $('b-birth'), m = el.value.match(/^(\d{4})[\/\-.]?(\d{2})[\/\-.]?(\d{2})$/); if (m && +m[1] > 1911) { el.value = String(+m[1] - 1911).padStart(3, '0') + '/' + m[2] + '/' + m[3]; return; } var v = el.value.replace(/\D/g, ''); if (v.length === 7) el.value = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) el.value = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4); }
 function formData() {
   birthTidy();
   return { clinicCode: $('b-clinic').value, name: $('b-name').value.trim(), pid: $('b-pid').value.trim(), birth: $('b-birth').value.trim(), phone: $('b-phone').value.trim(), address: $('b-address').value.trim(), allergy: $('al-yes').classList.contains('on') ? ($('b-allergy').value.trim() || '有') : '無', hp: $('hp').value, idToken: S.idToken, accessToken: S.accessToken };
