@@ -91,7 +91,7 @@ h2{font-size:18px;margin:0 0 14px}
 
   <!-- 預約：非初診 -->
   <div id="v-notfirst" class="hidden">
-    <div class="card"><h2>您已有就診紀錄</h2><div class="note" id="nf-msg"></div>
+    <div class="card"><h2 id="nf-title">您已有就診紀錄</h2><div class="note" id="nf-msg"></div>
       <a class="btn amb" id="nf-tel" href="#" style="text-decoration:none;text-align:center">📞 撥打院區電話掛號</a>
       <a class="link" href="#" onclick="go('home');return false">← 回首頁</a></div>
   </div>
@@ -197,7 +197,8 @@ function doQuery() {
   api({ action:'pubCheck', clinicCode: code, name: name, pid: pid, hp: $('hp').value }, function(d) {
     if (d.error) return showErr('q-err', d.error);
     var box = $('q-result'); box.classList.remove('hidden');
-    if (d.first) box.innerHTML = '<div class="okbox">✓ 查無您在 <b>' + d.clinicName + '院區</b> 的就診紀錄，屬於初診，可以使用網路預約。</div><button class="btn" style="margin-top:12px" onclick="prefill()">立即預約</button>';
+    if (d.duplicate) box.innerHTML = '<div class="note">' + d.message + '</div>' + (d.phone ? '<a class="btn amb" style="text-decoration:none;text-align:center" href="tel:' + d.phone.replace(/[^\d+]/g, '') + '">📞 撥打' + d.clinicName + '院區 ' + d.phone + '</a>' : '');
+    else if (d.first) box.innerHTML = '<div class="okbox">✓ 查無您在 <b>' + d.clinicName + '院區</b> 的就診紀錄，屬於初診，可以使用網路預約。</div><button class="btn" style="margin-top:12px" onclick="prefill()">立即預約</button>';
     else box.innerHTML = '<div class="note">' + d.message + '</div>' + (d.phone ? '<a class="btn amb" style="text-decoration:none;text-align:center" href="tel:' + d.phone.replace(/[^\d+]/g, '') + '">📞 撥打' + d.clinicName + '院區 ' + d.phone + '</a>' : '');
   }, $('q-btn'), '查詢中…');
 }
@@ -222,7 +223,7 @@ function checkFirst() {
   if ($('al-yes').classList.contains('on') && !$('b-allergy').value.trim()) return showErr('b-err', '請填寫過敏藥物名稱');
   api({ action:'pubCheck', clinicCode: f.clinicCode, name: f.name, pid: f.pid, hp: f.hp }, function(d) {
     if (d.error) return showErr('b-err', d.error);
-    if (!d.first) { $('nf-msg').textContent = d.message; telLink($('nf-tel'), d.phone); go('notfirst'); return; }
+    if (!d.first || d.duplicate) { $('nf-title').textContent = d.duplicate ? '您已有一筆預約' : '您已有就診紀錄'; $('nf-msg').textContent = d.message; telLink($('nf-tel'), d.phone); go('notfirst'); return; } // 非初診、或已有一筆未看診預約 → 不能再約
     S.first = d; $('s-who').innerHTML = '<b>' + d.clinicName + '院區</b>　' + f.name + '（初診）';
     loadSlots();
   }, $('b-next'), '核對中…');
