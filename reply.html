@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>金鶯診所 · 預約回覆</title>
+<!--
+  民眾在 LINE 按「取消預約／會如期回診／需另改約」後開的頁面（放 GitHub Pages，秒開）。
+  網址：reply.html?action=reply&id=<預約編號>&t=<token>&r=confirm|cancel|resched[&n=1]
+  流程：頁面先顯示「處理中」→ 向 Apps Script 要 replyJson → 畫結果；取消的二次確認在本頁按鈕，按下再呼叫一次（不用重新載入頁面）。
+  Apps Script 指令碼屬性 REPLY_URL 填本頁網址後，LINE 訊息裡的按鈕就會連到這裡。
+-->
+<style>
+body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:#F3F6F4;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#fff;border-radius:16px;padding:28px 24px;max-width:380px;width:88%;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
+.logo{width:64px;height:64px;border-radius:18px;margin:0 auto 12px;display:block}
+.ic{width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;background:#1E7F5C}
+.ic.ask{background:#B7791F}.ic.bad{background:#C0392B}
+.ic.spin{background:#fff;border:4px solid #D7E6E0;border-top-color:#1E7F5C;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+h1{font-size:20px;margin:0 0 10px;color:#1b2b26}p{font-size:15px;line-height:1.7;color:#444;margin:0}.f{margin-top:18px;font-size:12px;color:#999}
+.acts{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.btn{display:block;padding:14px;border-radius:12px;font-size:16px;font-weight:700;text-decoration:none;cursor:pointer;border:2px solid #1E7F5C;background:#1E7F5C;color:#fff;font-family:inherit}
+.btn.danger{background:#fff;color:#C0392B;border-color:#C0392B}.btn.line{background:#fff;color:#1E7F5C}
+.btn[disabled]{opacity:.5;cursor:default}
+.pushed{margin-top:12px;font-size:13px;color:#1E7F5C}
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="logo" src="https://jason19820913-lab.github.io/drking/logo.png" alt="" onerror="this.style.display='none'">
+  <div class="ic spin" id="ic"></div>
+  <h1 id="title">處理中…</h1>
+  <p id="msg">正在為您送出回覆，請稍候（約 3～5 秒）</p>
+  <div class="acts" id="acts"></div>
+  <div class="pushed" id="pushed"></div>
+  <div class="f">金鶯診所 門診預約系統</div>
+</div>
+<script>
+var API = 'https://script.google.com/macros/s/AKfycby0VcU__CbiQqa0sM_q_iXc5BwWS4Wb00ivQiOprhapTYWauxu8M0xvG08hXtgDudBIXQ/exec';
+var Q = {}; location.search.replace(/^\?/, '').split('&').forEach(function(kv){ if (!kv) return; var i = kv.indexOf('='); Q[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1).replace(/\+/g, ' ')); });
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+function setState(kind, title, msg) { var ic = $('ic'); ic.className = 'ic ' + kind; ic.textContent = kind === 'spin' ? '' : (kind === 'ask' ? '?' : (kind === 'bad' ? '!' : '✓')); $('title').textContent = title; $('msg').innerHTML = msg; }
+function call(r, step, tries) {
+  tries = tries || 0;
+  setState('spin', '處理中…', r === 'cancel' && step === '1' ? '正在為您取消預約，請稍候…' : '正在為您送出回覆，請稍候（約 3～5 秒）');
+  $('acts').innerHTML = ''; $('pushed').textContent = '';
+  var u = API + '?action=replyJson&id=' + encodeURIComponent(Q.id || '') + '&t=' + encodeURIComponent(Q.t || '') + '&r=' + encodeURIComponent(r) + (step ? '&step=' + step : '') + (Q.n ? '&n=1' : '') + '&_=' + Date.now();
+  fetch(u, { redirect:'follow' }).then(function(res){ return res.text(); }).then(function(txt) {
+    var d; try { d = JSON.parse(txt); } catch (e) { throw new Error('busy'); }
+    if (d.error) throw new Error(d.error);
+    render(d);
+  }).catch(function(e) {
+    if (String(e.message) === 'busy' && tries < 2) return setTimeout(function(){ call(r, step, tries + 1); }, 1500); // Google 忙碌頁 → 重試
+    setState('bad', '連線不穩，請再試一次', esc(e.message === 'busy' ? '伺服器暫時忙碌，請按下方按鈕重試。' : e.message));
+    $('acts').innerHTML = '<button class="btn" id="retry">重試</button>'; $('retry').addEventListener('click', function(){ call(r, step); });
+  });
+}
+function render(d) {
+  setState(d.ok === null ? 'ask' : (d.ok ? 'ok' : 'bad'), d.title, d.msg);
+  var h = '';
+  (d.acts || []).forEach(function(a, i) {
+    if (a.tel) h += '<a class="btn ' + (a.kind || '') + '" href="' + esc(a.tel) + '">' + esc(a.label) + '</a>';
+    else h += '<button class="btn ' + (a.kind || '') + '" data-r="' + esc(a.r) + '" data-step="' + esc(a.step || '') + '">' + esc(a.label) + '</button>';
+  });
+  $('acts').innerHTML = h;
+  Array.prototype.forEach.call(document.querySelectorAll('#acts button[data-r]'), function(b){ b.addEventListener('click', function(){ call(b.dataset.r, b.dataset.step); }); });
+  if (d.pushed) $('pushed').textContent = '✓ 已同步傳送一則確認訊息到您的 LINE';
+  if (d.autoTel) setTimeout(function(){ location.href = d.autoTel; }, 800);
+}
+if (!Q.id || !Q.t || !Q.r) setState('bad', '連結無效', '此連結缺少必要資訊，請由 LINE 訊息中的按鈕開啟。');
+else call(Q.r, Q.step || '');
+</script>
+</body>
+</html>
