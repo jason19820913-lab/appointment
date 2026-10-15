@@ -73,7 +73,7 @@ h2{font-size:18px;margin:0 0 14px}
     <form class="card" id="b-form" autocomplete="on" onsubmit="return false"><h2>第 1 步．基本資料</h2>
       <div class="fld"><label>院區 <b>*</b></label><select id="b-clinic" onchange="S.slots=null"></select></div>
       <div class="fld"><label>姓名 <b>*</b></label><input id="b-name" name="name" autocomplete="name" placeholder="請輸入本名" maxlength="20"></div>
-      <div class="fld"><label>身分證字號 <b>*</b></label><input id="b-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"></div>
+      <div class="fld"><label>身分證字號 <b>*</b></label><input id="b-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint(this)"><div class="hint" id="b-pid-hint"></div></div>
       <div class="row2">
         <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="b-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy()"><div class="hint">例：68年9月13日 → 0680913</div></div>
         <div class="fld"><label>手機號碼 <b>*</b></label><input id="b-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
@@ -178,10 +178,22 @@ function clinicOf(code){ return (S.cfg && S.cfg.clinics || []).filter(function(c
 function telLink(a, phone){ if (phone) { a.href = 'tel:' + phone.replace(/[^\d+]/g, ''); a.textContent = '📞 撥打院區電話 ' + phone; a.classList.remove('hidden'); } else a.classList.add('hidden'); }
 
 // ===== 查詢 =====
+// 身分證字號檢核（含 2021 起新式居留證 A8/A9/AA… 第二碼為 A～D）：字首對照數值 + 加權檢查碼
+function pidValid(pid) {
+  pid = String(pid || '').toUpperCase().trim();
+  if (!/^[A-Z][A-D0-9]\d{8}$/.test(pid)) return false;
+  var map = { A:10,B:11,C:12,D:13,E:14,F:15,G:16,H:17,I:34,J:18,K:19,L:20,M:21,N:22,O:35,P:23,Q:24,R:25,S:26,T:27,U:28,V:29,W:32,X:30,Y:31,Z:33 };
+  var n1 = map[pid[0]], d = [Math.floor(n1 / 10), n1 % 10];
+  var c2 = pid[1]; if (/[A-D]/.test(c2)) { var v = map[c2] % 10; d.push(v); } else d.push(+c2); // 新式居留證：A→0 B→1 C→2 D→3
+  for (var i = 2; i < 10; i++) d.push(+pid[i]);
+  var w = [1,9,8,7,6,5,4,3,2,1,1], sum = 0; for (var j = 0; j < 11; j++) sum += d[j] * w[j];
+  return sum % 10 === 0;
+}
+function pidHint(el){ var h = $('b-pid-hint'); if (!h) return; var v = el.value; if (v.length < 10) { h.textContent = ''; el.style.borderColor = ''; return; } var ok = pidValid(v); h.textContent = ok ? '✓ 格式正確' : '✕ 檢查碼不正確，請再確認'; h.style.color = ok ? '#1E7F5C' : '#C0392B'; el.style.borderColor = ok ? '' : '#C0392B'; }
 function doQuery() {
   var code = $('q-clinic').value, name = $('q-name').value.trim(), pid = $('q-pid').value.trim();
   showErr('q-err', ''); $('q-result').classList.add('hidden');
-  if (!code) return showErr('q-err', '請選擇院區'); if (!name) return showErr('q-err', '請輸入姓名'); if (!/^[A-Z][A-D0-9]\d{8}$/.test(pid)) return showErr('q-err', '身分證字號格式不正確');
+  if (!code) return showErr('q-err', '請選擇院區'); if (!name) return showErr('q-err', '請輸入姓名'); if (!/^[A-Z][A-D0-9]\d{8}$/.test(pid)) return showErr('q-err', '身分證字號格式不正確'); if (!pidValid(pid)) return showErr('q-err', '身分證字號檢查碼不正確，請再確認一次');
   api({ action:'pubCheck', clinicCode: code, name: name, pid: pid, hp: $('hp').value }, function(d) {
     if (d.error) return showErr('q-err', d.error);
     var box = $('q-result'); box.classList.remove('hidden');
@@ -203,7 +215,7 @@ function checkFirst() {
   var f = formData(); showErr('b-err', '');
   if (!f.clinicCode) return showErr('b-err', '請選擇院區');
   if (!f.name) return showErr('b-err', '請輸入姓名');
-  if (!/^[A-Z][A-D0-9]\d{8}$/.test(f.pid)) return showErr('b-err', '身分證字號格式不正確');
+  if (!/^[A-Z][A-D0-9]\d{8}$/.test(f.pid)) return showErr('b-err', '身分證字號格式不正確'); if (!pidValid(f.pid)) return showErr('b-err', '身分證字號檢查碼不正確，請再確認一次');
   if (!/^\d{3}\/\d{2}\/\d{2}$/.test(f.birth)) return showErr('b-err', '出生年月日請以民國年輸入 7 碼數字，例：0680913');
   if (!/^09\d{8}$/.test(f.phone)) return showErr('b-err', '請輸入 10 碼手機號碼');
   if (!f.address) return showErr('b-err', '請輸入通訊地址');
