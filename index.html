@@ -863,7 +863,7 @@ function dirSearch(q, field) {
       if (!eh) continue;
       var dup = seen[e[2]];
       if (dup) { if (!dup.birth) dup.birth = e[3]; if (!dup.phone) dup.phone = e[4]; dup.chartNo = e[0]; continue; }
-      var rec = { pid: e[2], pidMasked: mask(e[2]), name: e[1], lastDate: rocToIso(e[5]), lastClinic: here, lastDoctor: '', bound: false, source: 'HIS', phone: e[4], birth: e[3], chartNo: e[0] };
+      var rec = { pid: e[2], pidMasked: mask(e[2]), name: e[1], lastDate: rocToIso(e[5]), lastClinic: here, lastDoctor: '', bound: false, source: 'HIS', phone: e[4], birth: e[3], chartNo: e[0], erpFirst: !String(e[5] || '').trim() }; // 展望最近來診日空白＝建了病歷但沒看過診＝初診
       seen[e[2]] = rec; out.push(rec);
     }
   }
@@ -899,7 +899,7 @@ function acShow(typed, list, field) {
     var dt = p.lastDate ? String(p.lastDate).slice(5).replace('-', '/') : '';
     var where = (p.lastClinic ? esc(p.lastClinic) + '院區' : '') + (p.lastDoctor ? ' ' + esc(p.lastDoctor) : '');
     var extra = (p.birth ? '<span class="pid">· ' + esc(p.birth) + '</span>' : '') + (p.phone ? '<span class="pid">· ' + esc(fmtPhone(p.phone)) + '</span>' : '');
-    return '<div class="aci' + (p.lastClinic && p.lastClinic === here ? ' here' : '') + '" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + extra + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (p.chartNo ? ' · 病歷 ' + esc(p.chartNo) : '') + (dt ? ' · ' + dt : '') + '</div></div>';
+    return '<div class="aci' + (p.lastClinic && p.lastClinic === here ? ' here' : '') + '" onmousedown="acPick(' + i + ')"><div><b>' + esc(p.name) + '</b><span class="pid">' + p.pidMasked + '</span>' + extra + (where ? '<span class="pid">· ' + where + '</span>' : '') + '</div><div class="r">' + (p.bound ? '<span class="ok">LINE 已綁定</span>' : '未綁定') + (p.source === 'LINE' ? ' · 候診綁定' : '') + (p.chartNo ? ' · 病歷 ' + esc(p.chartNo) : '') + (p.source === 'HIS' ? (p.erpFirst ? ' · <span style="color:var(--amb);font-weight:700">初診（尚未就診）</span>' : ' · 複診 ' + dt) : (dt ? ' · ' + dt : '')) + '</div></div>';
   }).join('');
   box.classList.remove('hidden');
 }
@@ -910,6 +910,8 @@ function acPick(i) {
   if (p.birth) document.getElementById('b-birth').value = p.birth;
   if (p.phone) document.getElementById('b-phone').value = p.phone;
   if (p.chartNo) document.getElementById('b-chart').value = p.chartNo;
+  // 展望病歷：依「最近來診日」自動切類別（只在健保類之間切，減重類不動）
+  if (p.source === 'HIS' && /^健保/.test(S.cat)) { var want = p.erpFirst ? '健保初診' : '健保複診'; if (want !== S.cat) { setCat(want); toast('依展望最近來診日判定為' + (p.erpFirst ? '初診' : '複診') + '，類別已切換為「' + want + '」', ''); } }
   S.bound = p.bound; pidHint(); acHide(); renderSummary();
 }
 function acHide() { var b = document.getElementById('acl'); if (b) b.classList.add('hidden'); }
