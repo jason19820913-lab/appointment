@@ -339,7 +339,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <section id="v-list" class="hidden">
     <div class="ltb">
       <button class="ibtn" onclick="shiftDate(-1)">‹</button>
-      <label class="datepill"><span class="ic">📅</span><input type="date" id="li-date" onchange="loadList()"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span></label>
+      <label class="datepill" title="點一下開啟行事曆選日期" onclick="openDatePicker(event,'li-date')"><span class="ic">📅</span><input type="date" id="li-date" onchange="loadList()"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span><span class="ic" style="font-size:12px;color:var(--mut)">▼</span></label>
       <button class="ibtn" onclick="shiftDate(1)">›</button>
       <select id="li-clinic" onchange="loadList()"></select>
       <select id="li-doctor" onchange="renderList()"><option value="">全部醫師</option></select>
@@ -967,7 +967,11 @@ function submitBooking() {
     if (d.error) return toast(d.error, 'err');
     // 先把這筆直接寫進本機時段快取並立即重畫（不用等伺服器），背景再向伺服器要最新資料
     var ck = p.clinicCode + '|' + p.date, c = S.slotCache[ck];
-    if (c && c.d && c.d.slots) { c.d.slots.forEach(function(sl){ if (sl.key === p.slot) { sl.count = d.count != null ? d.count : sl.count + 1; (sl.people = sl.people || []).push({ n: p.name, d: p.doctor, st: '待報到', t: p.type === '回診預約' ? '回' : '電' }); } }); c.at = Date.now(); }
+    if (c && c.d && c.d.slots) { var catN = d.cat || S.cat || '健保複診';
+      c.d.slots.forEach(function(sl){ if (sl.key === p.slot) { sl.count = d.count != null ? d.count : sl.count + 1; (sl.people = sl.people || []).push({ n: p.name, d: p.doctor, st: '待報到', t: p.type === '回診預約' ? '回' : '電', c: catN }); } });
+      // 四類額度的已約數也要加上這筆（時段×醫師×類別），否則框內數字要等背景更新才會動
+      c.d.used = c.d.used || {}; var uk = docQKey(p.doctor) + '|' + catN; (c.d.used[p.slot] = c.d.used[p.slot] || {})[uk] = (c.d.used[p.slot][uk] || 0) + 1;
+      c.at = Date.now() - SLOT_STALE_MS - 1; } // 標成「舊」→ 立即用本機資料重畫，並背景向伺服器要最新
     if (p.pendingId) { S.pendingOrder = null; setPendBadge(Math.max(0, (S.pendCount || 1) - 1)); toast('待排回診已轉為「已排」', 'ok'); }
     resetForm(); loadSlots(); loadDirectory(); // 先清空表單，避免下一位帶到上一位資料
     var line = d.bound
@@ -1014,6 +1018,8 @@ function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
 function stopListPoll() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = null; }
 document.addEventListener('visibilitychange', function(){ if (!document.hidden && !document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
 window.addEventListener('focus', function(){ if (!document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
+// 日期膠囊：點任一處就開原生行事曆（Chrome／Edge 用 showPicker；其他瀏覽器退回 focus+click）
+function openDatePicker(ev, id) { var i = document.getElementById(id); if (!i) return; if (ev && ev.target === i) return; if (ev) ev.preventDefault(); try { if (i.showPicker) { i.showPicker(); return; } } catch (e) {} try { i.focus(); i.click(); } catch (e) {} }
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
 var _listSeq = 0; S.listCache = {};
