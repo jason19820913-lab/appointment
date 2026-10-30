@@ -155,7 +155,7 @@ table.lt tr.swrow td{background:#FFF4EF}table.lt tr.swrow td.time b{color:#C0392
 .ibtn{width:54px;height:54px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:20px;color:var(--tx)}
 .ibtn:hover{background:var(--teal-l)}
 .datepill{display:flex;align-items:center;gap:12px;height:54px;padding:0 18px;border:1px solid var(--line);border-radius:12px;background:#fff;position:relative;cursor:pointer}
-.datepill input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.lcal{position:absolute;top:calc(100% + 8px);left:0;z-index:50;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:14px;width:360px;cursor:default}.lcal .cal .d{width:40px;height:40px;font-size:15px}.lcal .cal-h{margin-bottom:8px}.lcal .cal-h b{font-size:16px}.lcal .cal-h button{width:36px;height:36px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:16px;cursor:pointer}.lcal-f{display:flex;justify-content:space-between;margin-top:10px;gap:8px}.lcal .wd{font-size:12px;color:var(--mut);padding:4px 0}
 .datepill b{font-size:20px;font-weight:700}.datepill .ic{font-size:18px}
 .today-badge{background:var(--teal-l);color:var(--teal);border-radius:8px;padding:3px 10px;font-size:13px;font-weight:700}
 .ltb select,.ltb .search{height:54px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
@@ -339,7 +339,8 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
   <section id="v-list" class="hidden">
     <div class="ltb">
       <button class="ibtn" onclick="shiftDate(-1)">‹</button>
-      <label class="datepill" title="點一下開啟行事曆選日期" onclick="openDatePicker(event,'li-date')"><span class="ic">📅</span><input type="date" id="li-date" onchange="loadList()"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span><span class="ic" style="font-size:12px;color:var(--mut)">▼</span></label>
+      <div class="datepill" id="li-pill" title="點一下開啟行事曆選日期" onclick="toggleListCal(event)"><span class="ic">📅</span><input type="hidden" id="li-date"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span><span class="ic" style="font-size:12px;color:var(--mut)">▼</span>
+          <div class="lcal hidden" id="li-cal" onclick="event.stopPropagation()"><div class="cal-h"><button type="button" onclick="listCalMove(-1)">‹</button><b id="li-cal-title"></b><button type="button" onclick="listCalMove(1)">›</button></div><div class="cal" id="li-cal-grid"></div><div class="lcal-f"><button type="button" class="btn sm sec" onclick="listCalPick(S.today)">今天</button><button type="button" class="btn sm sec" onclick="closeListCal()">關閉</button></div></div></div>
       <button class="ibtn" onclick="shiftDate(1)">›</button>
       <select id="li-clinic" onchange="loadList()"></select>
       <select id="li-doctor" onchange="renderList()"><option value="">全部醫師</option></select>
@@ -1020,8 +1021,25 @@ function startListPoll() { stopListPoll(); _pollTimer = setInterval(function() {
 function stopListPoll() { if (_pollTimer) clearInterval(_pollTimer); _pollTimer = null; }
 document.addEventListener('visibilitychange', function(){ if (!document.hidden && !document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
 window.addEventListener('focus', function(){ if (!document.getElementById('v-list').classList.contains('hidden')) loadList(true); });
-// 日期膠囊：點任一處就開原生行事曆（Chrome／Edge 用 showPicker；其他瀏覽器退回 focus+click）
-function openDatePicker(ev, id) { var i = document.getElementById(id); if (!i) return; if (ev && ev.target === i) return; if (ev) ev.preventDefault(); try { if (i.showPicker) { i.showPicker(); return; } } catch (e) {} try { i.focus(); i.click(); } catch (e) {} }
+// 每日名單日期膠囊：自製下拉月曆（原生 date input 在不同瀏覽器開啟行為不一致）；可選過去日期，任意月份
+S.lcY = null; S.lcM = null;
+function toggleListCal(ev) { var box = document.getElementById('li-cal'); if (!box.classList.contains('hidden')) { closeListCal(); return; } var cur = document.getElementById('li-date').value || S.today; var d = new Date(cur + 'T00:00:00'); S.lcY = d.getFullYear(); S.lcM = d.getMonth(); renderListCal(); box.classList.remove('hidden'); setTimeout(function(){ document.addEventListener('mousedown', listCalOutside); }, 0); }
+function closeListCal() { document.getElementById('li-cal').classList.add('hidden'); document.removeEventListener('mousedown', listCalOutside); }
+function listCalOutside(e) { if (!document.getElementById('li-pill').contains(e.target)) closeListCal(); }
+function listCalMove(n) { var d = new Date(S.lcY, S.lcM + n, 1); S.lcY = d.getFullYear(); S.lcM = d.getMonth(); renderListCal(); }
+function listCalPick(k) { document.getElementById('li-date').value = k; closeListCal(); loadList(); }
+function renderListCal() {
+  var y = S.lcY, m = S.lcM, cur = document.getElementById('li-date').value || S.today;
+  document.getElementById('li-cal-title').textContent = y + ' 年 ' + (m + 1) + ' 月';
+  var first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
+  var html = WD.map(function(w){ return '<div class="wd">' + w + '</div>'; }).join('');
+  for (var i = 0; i < 42; i++) {
+    var d = new Date(start); d.setDate(start.getDate() + i); var k = ymd(d), out = d.getMonth() !== m;
+    html += '<div class="d' + (out ? ' out' : '') + (k === S.today ? ' today' : '') + (k === cur ? ' sel' : '') + '"' + (out ? '' : ' onclick="listCalPick(\'' + k + '\')"') + '>' + d.getDate() + '</div>';
+    if (i === 34 && new Date(start.getTime() + 35 * 864e5).getMonth() !== m) break;
+  }
+  document.getElementById('li-cal-grid').innerHTML = html;
+}
 function shiftDate(n) { var el = document.getElementById('li-date'); var d = new Date(el.value + 'T00:00:00'); d.setDate(d.getDate() + n); el.value = ymd(d); loadList(); }
 function setToday() { document.getElementById('li-date').value = S.today; loadList(); }
 var _listSeq = 0; S.listCache = {};
