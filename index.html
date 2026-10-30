@@ -877,7 +877,7 @@ function acInput(field, v) {
   clearTimeout(S.acTimer); if (field === 'name' || field === 'pid') { S.bound = null; pidHint(); }
   var typed = String(v || '').trim(); S.acField = field;
   if (typed.length < (AC_MIN[field] || 1)) { acHide(); return; }
-  if (S.dir || S.erp[document.getElementById('b-clinic').value]) { acShow(typed, dirSearch(typed, field), field); return; } // 本機快取（歷史預約＋LINE 綁定＋展望病歷）→ 即時
+  if (S.dir || S.erp[document.getElementById('b-clinic').value]) { var loc = dirSearch(typed, field); acShow(typed, loc, field); if (!loc.length) erpLiveMaybe(field, typed); return; } // 本機快取（歷史預約＋LINE 綁定＋展望病歷）→ 即時；查不到 → 向 ERP 即時補抓
   if (field !== 'name' && field !== 'pid') { acHide(); return; } // 生日／電話／病歷號只在本機目錄比對
   S.acTimer = setTimeout(function() {
     get({ action:'searchPatient', q:typed }, function(d) {
@@ -886,6 +886,25 @@ function acInput(field, v) {
       acShow(typed, d.list, field);
     });
   }, 150);
+}
+// 本機目錄查不到 → 0.5 秒後向 ERP 即時補抓「上次同步後有變動的人」（今天剛建檔的初診會在這裡），抓到就併入本機目錄再比對一次
+var ERP_LIVE_MIN = { name: 2, pid: 4, birth: 7, phone: 6, chart: 3 };
+function erpLiveMaybe(field, typed) {
+  clearTimeout(S.liveTimer); var code = document.getElementById('b-clinic').value; if (!code || !S.erp[code] || typed.length < (ERP_LIVE_MIN[field] || 2)) return;
+  var lk = code + '|' + field + '|' + typed; if (S.liveDone === lk) return;
+  S.liveTimer = setTimeout(function() {
+    S.liveDone = lk; var box = document.getElementById('acl'); var host = document.getElementById({ name:'b-name', pid:'b-pid', birth:'b-birth', phone:'b-phone', chart:'b-chart' }[field] || 'b-name'); var wrap = host && host.closest('.fld'); if (wrap && box.parentNode !== wrap) wrap.appendChild(box);
+    box.innerHTML = '<div class="h">本機查無資料，正在向展望即時查詢… <span class="sl-sec"></span></div>'; box.classList.remove('hidden');
+    var p = { action:'erpLive', clinicCode: code }; if (field === 'chart' && /^\d{1,7}$/.test(typed)) p.chartNo = ('0000000' + typed).slice(-7);
+    get(p, function(d) {
+      var cur = host.value.trim(); if (cur !== typed) return; // 使用者已繼續打字
+      if (d.error) { box.innerHTML = '<div class="h">展望即時查詢失敗：' + esc(d.error) + '</div>'; return; }
+      var added = 0; if (d.rows && d.rows.length) { var have = {}; S.erp[code].forEach(function(e){ have[e[0]] = true; }); d.rows.forEach(function(r){ if (!have[r[0]]) { S.erp[code].push(r); added++; } else { for (var i = 0; i < S.erp[code].length; i++) if (S.erp[code][i][0] === r[0]) S.erp[code][i] = r; } }); }
+      var loc = dirSearch(typed, field);
+      if (loc.length) { acShow(typed, loc, field); if (added) toast('已從展望即時補到 ' + added + ' 筆新資料', 'ok'); }
+      else box.innerHTML = '<div class="h">展望與本系統都查無此' + ({ name:'姓名', pid:'身分證', birth:'生日', phone:'電話', chart:'病歷號' }[field] || '資料') + (d.throttled ? '（剛查過，請稍候再試）' : d.error2 ? '（' + esc(d.error2) + '）' : '') + '，請直接輸入資料</div>';
+    }, null, { silent: true });
+  }, 500);
 }
 function acShow(typed, list, field) {
   S.acList = list; var box = document.getElementById('acl');
@@ -925,12 +944,20 @@ function pidLookup() {
   if (pid.length < 4) return toast('請至少輸入身分證前 4 碼', 'err');
   if (S.dir) { var l = dirSearch(pid, 'pid'); var hitL = l.filter(function(p){ return p.pid === pid; })[0] || (l.length === 1 ? l[0] : null);
     if (hitL) { S.acList = [hitL]; acPick(0); toast('已帶入 ' + hitL.name, 'ok'); return; } }
-  get({ action:'searchPatient', q:pid }, function(d) {
+  var code = document.getElementById('b-clinic').value;
+  var fallback = function() { get({ action:'searchPatient', q:pid }, function(d) {
     if (d.error) return toast(d.error, 'err');
     var hit = d.list.filter(function(p){ return p.pid === pid; })[0] || (d.list.length === 1 ? d.list[0] : null);
-    if (!hit) { S.bound = null; pidHint(); return toast('查無此身分證的歷史紀錄，請直接輸入姓名', ''); }
+    if (!hit) { S.bound = null; pidHint(); return toast('展望與本系統都查無此身分證，請直接輸入姓名', ''); }
     S.acList = [hit]; acPick(0); toast('已帶入 ' + hit.name, 'ok');
-  });
+  }); };
+  if (code && S.erp[code]) { toast('本機查無，正在向展望即時查詢…', ''); get({ action:'erpLive', clinicCode: code }, function(d) {
+    if (d.rows && d.rows.length) { var have = {}; S.erp[code].forEach(function(e){ have[e[0]] = true; }); d.rows.forEach(function(r){ if (!have[r[0]]) S.erp[code].push(r); }); }
+    var l2 = dirSearch(pid, 'pid'); var h2 = l2.filter(function(p){ return p.pid === pid; })[0] || (l2.length === 1 ? l2[0] : null);
+    if (h2) { S.acList = [h2]; acPick(0); toast('已從展望帶入 ' + h2.name, 'ok'); return; }
+    fallback();
+  }, null, { silent: true }); return; }
+  fallback();
 }
 // 生日輸入整理：68/9/13、680913、0680913 → 068/09/13（民國）
 function normBirth(v) {
