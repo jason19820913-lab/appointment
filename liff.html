@@ -99,7 +99,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="fld"><label>院區 <b>*</b></label><select id="r-clinic" onchange="S.slots=null"></select></div>
       <div class="fld"><label>身分證字號 <b>*</b></label><input id="r-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint2(this)"><div class="hint" id="r-pid-hint"></div></div>
       <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="r-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy2()"><div class="hint">例：68年9月13日 → 0680913</div></div>
-      <div class="fld"><label>手機號碼 <b>*</b></label><input id="r-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
+      <div class="fld"><label>手機號碼 <span style="color:var(--mut);font-weight:400">（留空會用病歷上的手機）</span></label><input id="r-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
       <div class="fld"><label>就診原因（選填）</label><input id="r-reason" placeholder="例：慢箋領藥、回診看報告" maxlength="50"></div>
       <input id="hp2" class="hp" tabindex="-1" autocomplete="off">
       <div id="r-err" class="err hidden"></div>
@@ -191,7 +191,9 @@ api({ action:'pubConfig' }, function(d) {
   S.cfg = d;
   var opts = d.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
   if (!d.clinics.length) opts = '<option value="">（目前沒有開放網路預約的院區）</option>';
-  $('q-clinic').innerHTML = opts; $('b-clinic').innerHTML = opts; $('r-clinic').innerHTML = opts; loadMe();
+  $('q-clinic').innerHTML = opts; $('b-clinic').innerHTML = opts; $('r-clinic').innerHTML = opts;
+  try { var last = JSON.parse(localStorage.getItem('rvLast') || 'null'); if (last && last.pid) { $('r-pid').value = last.pid; pidHint2($('r-pid')); $('r-birth').value = last.birth || ''; $('r-phone').value = last.phone || ''; $('q-pid').value = last.pid; $('q-birth').value = last.birth || ''; if (last.clinicCode) { var sel = $('r-clinic'); for (var k = 0; k < sel.options.length; k++) if (sel.options[k].value === last.clinicCode) sel.value = last.clinicCode; } } } catch (e) {} // 上次在這支手機輸入過 → 先帶回（LINE 綁定者會再被 pubMe 覆蓋）
+  loadMe();
   if (d.notice) { $('notice').textContent = d.notice; $('notice').classList.remove('hidden'); }
 });
 function clinicOf(code){ return (S.cfg && S.cfg.clinics || []).filter(function(c){ return c.code === code; })[0] || {}; }
@@ -265,17 +267,19 @@ function loadMe() {
     if (d.people.length === 1) pickMe(0);
   }, null, '');
 }
-function pickMe(i) { var x = S.me[i]; if (!x) return; $('r-pid').value = x.pid; pidHint2($('r-pid')); if (x.birth) $('r-birth').value = x.birth; $('q-pid').value = x.pid; if (x.birth) $('q-birth').value = x.birth; if (x.clinicCode) { var sel = $('r-clinic'); for (var k = 0; k < sel.options.length; k++) if (sel.options[k].value === x.clinicCode) sel.value = x.clinicCode; } }
+function pickMe(i) { var x = S.me[i]; if (!x) return; $('r-pid').value = x.pid; pidHint2($('r-pid')); if (x.birth) $('r-birth').value = x.birth; if (x.phone && !$('r-phone').value) $('r-phone').value = x.phone; $('q-pid').value = x.pid; if (x.birth) $('q-birth').value = x.birth; if (x.clinicCode) { var sel = $('r-clinic'); for (var k = 0; k < sel.options.length; k++) if (sel.options[k].value === x.clinicCode) sel.value = x.clinicCode; } }
 function rvData() { birthTidy2(); return { clinicCode: $('r-clinic').value, pid: $('r-pid').value.trim(), birth: $('r-birth').value.trim(), phone: $('r-phone').value.trim(), reason: $('r-reason').value.trim(), hp: $('hp2').value, idToken: S.idToken, accessToken: S.accessToken }; }
 function checkRevisit() {
   var f = rvData(); showErr('r-err', '');
   if (!f.clinicCode) return showErr('r-err', '請選擇院區');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(f.pid)) return showErr('r-err', '身分證字號格式不正確'); if (!pidValid(f.pid)) return showErr('r-err', '身分證字號檢查碼不正確，請再確認一次');
   if (!/^\d{3}\/\d{2}\/\d{2}$/.test(f.birth)) return showErr('r-err', '出生年月日請以民國年輸入 7 碼數字，例：0680913');
-  if (!/^09\d{8}$/.test(f.phone)) return showErr('r-err', '請輸入 10 碼手機號碼');
+  if (f.phone && !/^09\d{8}$/.test(f.phone)) return showErr('r-err', '手機號碼請輸入 10 碼，或留空使用病歷上的手機');
   api({ action:'pubCheck2', clinicCode: f.clinicCode, pid: f.pid, birth: f.birth, hp: f.hp }, function(d) {
     if (d.error) { if (d.first) { $('nf-title').textContent = '查無就診紀錄'; $('nf-msg').textContent = d.error; telLink($('nf-tel'), d.phone); $('nf-first').classList.add('hidden'); go('notfirst'); return; } return showErr('r-err', d.error); }
     if (d.duplicate) { $('nf-title').textContent = '您已有一筆預約'; $('nf-msg').textContent = d.message; telLink($('nf-tel'), d.phone); $('nf-first').classList.add('hidden'); go('notfirst'); return; }
+    if (!f.phone && d.erpPhone && /^09\d{8}$/.test(d.erpPhone)) $('r-phone').value = d.erpPhone; // 沒填手機 → 帶病歷上的
+    try { localStorage.setItem('rvLast', JSON.stringify({ clinicCode: f.clinicCode, pid: f.pid, birth: f.birth, phone: $('r-phone').value })); } catch (e) {}
     S.mode = 'rv'; S.rv = d; $('s-who').innerHTML = '<b>' + d.clinicName + '院區</b>　' + (d.name || '') + '（複診' + (d.chartNo ? '・病歷 ' + d.chartNo : '') + (d.lastVisit ? '・上次來診 ' + d.lastVisit : '') + '）';
     loadSlots();
   }, $('r-next'), '核對中…');
