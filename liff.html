@@ -102,7 +102,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="hint" style="margin-bottom:10px">輸入身分證與生日後，系統會核對您在該院區的病歷並帶出姓名；第一次到本院區的民眾請電洽櫃檯掛號。</div>
       <div id="rv-me" class="hidden" style="margin-bottom:10px"></div>
       <div class="fld"><label>院區 <b>*</b></label><select id="r-clinic" onchange="S.slots=null"></select></div>
-      <div class="fld"><label>身分證字號 <b>*</b></label><input id="r-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint2(this)"><div class="hint" id="r-pid-hint"></div></div>
+      <div class="fld"><label>身分證字號 <b>*</b></label><input id="r-pid" name="idnumber" autocomplete="on" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint2(this)"><div class="hint" id="r-pid-hint">輸入後若有病歷，生日核對通過即自動帶出姓名、病歷號與手機</div></div>
       <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="r-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy2()"><div class="hint">例：68年9月13日 → 0680913</div></div>
       <div class="fld"><label>手機號碼 <span style="color:var(--mut);font-weight:400">（留空會用病歷上的手機）</span></label><input id="r-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
       <div class="fld"><label>就診原因（選填）</label><input id="r-reason" placeholder="例：慢箋領藥、回診看報告" maxlength="50"></div>
