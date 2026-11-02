@@ -868,7 +868,7 @@ function loadErpDir(code) {
   get({ action:'getErpDir', clinicCode: code }, function(d){ S.erpBusy[code] = false; if (d && d.success) { S.erp[code] = d.list || []; S.erpAt = d.syncAt || ''; if (window.console) console.debug('[ERP] ' + code + ' 目錄 ' + S.erp[code].length + ' 人'); } }, null, { silent: true, onError: function(){ S.erpBusy[code] = false; } });
 }
 function rocToIso(r) { var m = String(r || '').match(/^(\d{2,3})\/(\d{2})\/(\d{2})$/); return m ? (+m[1] + 1911) + '-' + m[2] + '-' + m[3] : ''; }
-function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); } if (cb) cb(); }, null, { silent: true }); }
+function loadDirectory(cb) { get({ action:'getDirectory' }, function(d){ if (d && d.list) { S.dir = d.list; S.dirAt = Date.now(); S.dirByPid = {}; d.list.forEach(function(x){ S.dirByPid[x.p] = x; }); } if (cb) cb(); }, null, { silent: true }); }
 // 四欄連動：姓名／身分證／出生年月日／電話 任一欄輸入 → 在本機目錄（病人主檔 ∪ LINE 綁定）比對，點選後四欄一起帶出；同院區就診過者排前面
 var AC_MIN = { name: 1, pid: 3, birth: 3, phone: 4, chart: 2 };
 function chartTidy() { var el = document.getElementById('b-chart'); var v = el.value.trim(); if (/^\d{1,6}$/.test(v)) el.value = ('0000000' + v).slice(-7); }
@@ -901,7 +901,8 @@ function dirSearch(q, field) {
       if (!eh) continue;
       var dup = seen[e[2]];
       if (dup) { if (!dup.birth) dup.birth = e[3]; if (!dup.phone) dup.phone = e[4]; dup.chartNo = e[0]; continue; }
-      var rec = { pid: e[2], pidMasked: mask(e[2]), name: e[1], lastDate: rocToIso(e[5]), lastClinic: here, lastDoctor: '', bound: false, source: 'HIS', phone: e[4], birth: e[3], chartNo: e[0], erpFirst: !String(e[5] || '').trim() }; // 展望最近來診日空白＝建了病歷但沒看過診＝初診
+      var dx = S.dirByPid && S.dirByPid[e[2]]; // 2026-11-03：展望來的人也要對本系統目錄（含綁定主檔）查綁定狀態——病歷號欄只比對展望，之前一律顯示「尚未綁定」
+      var rec = { pid: e[2], pidMasked: mask(e[2]), name: e[1], lastDate: rocToIso(e[5]), lastClinic: here, lastDoctor: '', bound: !!(dx && dx.b), source: 'HIS', phone: e[4], birth: e[3], chartNo: e[0], erpFirst: !String(e[5] || '').trim() }; // 展望最近來診日空白＝建了病歷但沒看過診＝初診
       seen[e[2]] = rec; out.push(rec);
     }
   }
@@ -970,6 +971,8 @@ function acPick(i) {
   // 展望病歷：依「最近來診日」自動切類別（只在健保類之間切，減重類不動）
   if (p.source === 'HIS' && /^健保/.test(S.cat)) { var want = p.erpFirst ? '健保初診' : '健保複診'; if (want !== S.cat) { setCat(want); toast('依展望最近來診日判定為' + (p.erpFirst ? '初診' : '複診') + '，類別已切換為「' + want + '」', ''); } }
   S.bound = p.bound; pidHint(); acHide(); renderSummary();
+  // 目錄顯示未綁定 → 向後端即時確認一次（目錄每 2 分鐘才更新；民眾剛綁完或目錄還沒載好時才不會誤判）
+  if (!p.bound && p.pid) { var pid0 = p.pid; get({ action:'checkBind', pid: pid0 }, function(d){ if (d && d.bound && document.getElementById('b-pid').value.trim().toUpperCase() === pid0) { S.bound = true; pidHint(); renderSummary(); if (S.dirByPid && S.dirByPid[pid0]) S.dirByPid[pid0].b = true; } }, null, { silent: true }); }
 }
 function acHide() { var b = document.getElementById('acl'); if (b) b.classList.add('hidden'); }
 // 離開欄位時延遲收起；若焦點已移到另一個連動欄位且清單是那欄的，就不收（避免 Tab 切欄時把新清單關掉）
