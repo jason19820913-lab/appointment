@@ -6,7 +6,7 @@
 <title>金鶯診所網路預約系統</title>
 <meta name="description" content="金鶯診所網路預約系統：健保複診線上預約、查詢與取消。">
 <meta property="og:title" content="金鶯診所網路預約系統">
-<meta property="og:description" content="健保複診線上預約、查詢與取消；初診請至院區櫃檯掛號。">
+<meta property="og:description" content="健保複診線上預約、查詢與取消；初診請電洽院區櫃檯。">
 <meta property="og:image" content="https://jason19820913-lab.github.io/drking/logo.png">
 <meta property="og:type" content="website">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -106,6 +106,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="r-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy2()"><div class="hint">例：68年9月13日 → 0680913</div></div>
       <div class="fld"><label>手機號碼 <span style="color:var(--mut);font-weight:400">（留空會用病歷上的手機）</span></label><input id="r-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
       <div class="fld"><label>就診原因（選填）</label><input id="r-reason" placeholder="例：慢箋領藥、回診看報告" maxlength="50"></div>
+      <label class="ck" style="display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.6;margin:4px 0 8px"><input type="checkbox" id="r-consent" style="margin-top:5px"><span>我同意金鶯診所將我的 LINE 帳號與病歷資料連結，用於預約提醒、候診叫號、衛教與滿意度調查等通知（個人資料僅供本診所醫療服務使用）。</span></label>
       <input id="hp2" class="hp" tabindex="-1" autocomplete="off">
       <div id="r-err" class="err hidden"></div>
       <button type="button" class="btn" id="r-next" onclick="checkRevisit()">下一步：核對病歷並選時段</button>
@@ -273,13 +274,14 @@ function loadMe() {
   }, null, '');
 }
 function pickMe(i) { var x = S.me[i]; if (!x) return; $('r-pid').value = x.pid; pidHint2($('r-pid')); if (x.birth) $('r-birth').value = x.birth; if (x.phone && !$('r-phone').value) $('r-phone').value = x.phone; $('q-pid').value = x.pid; if (x.birth) $('q-birth').value = x.birth; if (x.clinicCode) { var sel = $('r-clinic'); for (var k = 0; k < sel.options.length; k++) if (sel.options[k].value === x.clinicCode) sel.value = x.clinicCode; } }
-function rvData() { birthTidy2(); return { clinicCode: $('r-clinic').value, pid: $('r-pid').value.trim(), birth: $('r-birth').value.trim(), phone: $('r-phone').value.trim(), reason: $('r-reason').value.trim(), hp: $('hp2').value, idToken: S.idToken, accessToken: S.accessToken }; }
+function rvData() { birthTidy2(); return { clinicCode: $('r-clinic').value, pid: $('r-pid').value.trim(), birth: $('r-birth').value.trim(), phone: $('r-phone').value.trim(), reason: $('r-reason').value.trim(), consent: $('r-consent') && $('r-consent').checked ? '1' : '', hp: $('hp2').value, idToken: S.idToken, accessToken: S.accessToken }; }
 function checkRevisit() {
   var f = rvData(); showErr('r-err', '');
   if (!f.clinicCode) return showErr('r-err', '請選擇院區');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(f.pid)) return showErr('r-err', '身分證字號格式不正確'); if (!pidValid(f.pid)) return showErr('r-err', '身分證字號檢查碼不正確，請再確認一次');
   if (!/^\d{3}\/\d{2}\/\d{2}$/.test(f.birth)) return showErr('r-err', '出生年月日請以民國年輸入 7 碼數字，例：0680913');
   if (f.phone && !/^09\d{8}$/.test(f.phone)) return showErr('r-err', '手機號碼請輸入 10 碼，或留空使用病歷上的手機');
+  if (S.idToken && !f.consent) return showErr('r-err', '請勾選同意將 LINE 帳號與病歷連結，才能為您綁定並發送提醒');
   api({ action:'pubCheck2', clinicCode: f.clinicCode, pid: f.pid, birth: f.birth, hp: f.hp }, function(d) {
     if (d.error) { if (d.first) { $('nf-title').textContent = '查無就診紀錄'; $('nf-msg').textContent = d.error; telLink($('nf-tel'), d.phone); $('nf-first').classList.add('hidden'); go('notfirst'); return; } return showErr('r-err', d.error); }
     if (d.duplicate) { $('nf-title').textContent = '您已有一筆預約'; $('nf-msg').textContent = d.message; telLink($('nf-tel'), d.phone); $('nf-first').classList.add('hidden'); go('notfirst'); return; }
