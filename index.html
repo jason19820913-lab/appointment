@@ -636,7 +636,7 @@ function renderDoctorSelect() {
   var docs = S.doctors.filter(function(d){ return d.clinicCode === code; });
   var byNorm = {}; docs.forEach(function(d){ byNorm[normDoc(d.name)] = d.name; });
   var sched = (S.sched && S.schedKey === code + '|' + S.date) ? S.sched : null;
-  var m0 = S.slot ? slotMin(S.slot) : null, m1 = m0 != null ? m0 + 60 : null;
+  var m0 = S.slot ? slotMin(S.slot) : null, m1 = m0 != null ? slotEndMin(S.slot) : null;
   var duty = [], seen = {}; // 本日有診
   if (sched && sched.sessions) ['早', '午', '晚'].forEach(function(k) {
     (sched.sessions[k] || []).forEach(function(x) {
@@ -745,7 +745,7 @@ function renderSlots(d, fromCache) {
   var keep = S.slot; // 背景更新時保留已選時段
   if (!d.skeleton) S.slotData = d; // 額度計算用（used／quotas）
   {
-    d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (!s.end) s.end = p2(Math.floor((s.min + 60) / 60)) + ':' + p2((s.min + 60) % 60); if (!s.label) s.label = s.key + '-' + s.end; });
+    d.slots.forEach(function(s){ if (s.min == null) s.min = slotMin(s.key); if (s.endMin == null) s.endMin = Math.floor(s.min / 60) * 60 + 60; if (!s.end) s.end = p2(Math.floor(s.endMin / 60)) + ':' + p2(s.endMin % 60); if (!s.label) s.label = s.key + '-' + s.end; });
     var groups = [ { t:'上午診', k:'早', f:function(m){ return m < 12 * 60; } }, { t:'下午診', k:'午', f:function(m){ return m >= 12 * 60 && m < 18 * 60; } }, { t:'晚間診', k:'晚', f:function(m){ return m >= 18 * 60; } } ];
     var sched = d.schedule || null; if (!d.skeleton) S.sched = sched;
     var html = '';
@@ -760,12 +760,12 @@ function renderSlots(d, fromCache) {
         + scOff.map(function(x){ return '<span class="dr off" title="' + esc(x.xn || '休診') + '">' + esc(x.n) + ' <small>' + x.s + '–' + x.e + '</small> <em>' + esc(x.xn || '休診') + '</em></span>'; }).join('') + '</div>';
       html += '<div class="grp"><h4>' + g.t + ' ' + lo.key + '–' + hi.end + '</h4>' + scHtml + '<div class="slots" style="--c:' + cols + '">';
       list.forEach(function(s) {
-        var pending = s.count == null, full = !pending && s.count >= s.cap, warn = !pending && !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.min + 60);
+        var pending = s.count == null, full = !pending && s.count >= s.cap, warn = !pending && !full && s.count >= s.cap * 0.75, past = slotPassed(S.date, s.endMin);
         var cntTxt = pending ? '額度載入中…' : '', cnt = pending ? cntTxt + ' <span class="sl-sec"></span>' : cntTxt; // 已約／上限總數不再顯示，以下方四類額度為主
         // 框內明細：初／複診標記（減重另標）＋ 點名字開「修改預約」
         var who = (s.people || []).map(function(x){ var ct = catTag(x.c); return '<span class="pp' + (x.id ? ' clk' : '') + '"' + (x.id ? ' onclick="openSlotBooking(\'' + esc(x.id) + '\',event)" title="點一下查看／修改這筆預約"' : '') + '>' + (x.w ? '<span class="w" title="班表異動：該醫師此時段已無門診">⚠ ' : '') + esc(x.n) + ' · ' + esc(shortDoc(x.d)) + (x.st === '已報到' ? ' ✓' : '') + (x.w ? '</span>' : '') + (ct ? ' <i class="ct' + (/初/.test(ct) ? ' f' : '') + (/減/.test(ct) ? ' wl' : '') + '">' + ct + '</i>' : '') + '</span>'; });
         var whoHtml = who.length ? '<div class="who" title="' + (s.people || []).map(function(x){ return x.n + '（' + x.d + '｜' + (x.c || '') + '｜' + x.st + '）'; }).join('\n') + '">' + who.slice(0, 3).join('<br>') + (who.length > 3 ? '<br><span class="pp clk" onclick="openSlotMore(\'' + s.key + '\',event)">… 還有 ' + (who.length - 3) + ' 位（點開看全部）</span>' : '') + '</div>' : '';
-        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + (who.length ? ' has' : '') + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="' + cntTxt + '" data-m="' + s.min + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? '已過' : (full ? '已額滿（' + s.count + '/' + s.cap + '）' : cnt)) + '</small>' + whoHtml + '</div>';
+        html += '<div class="slot' + (past ? ' past' : (full ? ' full' : (warn ? ' warn' : ''))) + (who.length ? ' has' : '') + '" data-k="' + s.key + '" data-l="' + s.label + '" data-c="' + cntTxt + '" data-m="' + s.min + '" data-e="' + s.endMin + '" onclick="pickSlot(this,' + (full ? 'true' : 'false') + ',' + (past ? 'true' : 'false') + ')"><b>' + s.key + '–' + s.end + '</b><small>' + (past ? '已過' : (full ? '已額滿（' + s.count + '/' + s.cap + '）' : cnt)) + '</small>' + whoHtml + '</div>';
       });
       html += '</div></div>';
     });
@@ -798,7 +798,7 @@ function applyDoctorFilter() {
   ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
   var offCount = 0, onCount = 0;
   slots.forEach(function(el) {
-    var m = +el.dataset.m; var ok = ranges.some(function(r){ return m < r[1] && m + 60 > r[0]; });
+    var m = +el.dataset.m, me = +el.dataset.e || (m + 60); var ok = ranges.some(function(r){ return m < r[1] && me > r[0]; });
     el.classList.toggle('off', !ok); if (ok) onCount++; else offCount++; qGrey(el);
     if (!ok && el.classList.contains('on')) { el.classList.remove('on'); el.querySelector('small').textContent = el.dataset.c; S.slot = ''; S.slotLabel = ''; toast('原選時段不在 ' + shortDoc(doc) + ' 醫師的班表內，已取消選取', ''); }
   });
@@ -849,14 +849,17 @@ function setCat(c, btn) { S.cat = c; document.querySelectorAll('#b-cat button').
 // 額度：所選醫師／類別在某時段是否已滿（用 getSlots 回傳的 used／quotas）
 function docQKey(d) { d = String(d || '').trim(); return (!d || /不指定/.test(d)) ? '*' : normDoc(d); }
 // 時段框內四類額度兩行：健保 初診 0/1・複診 0/3 ／ 減重 初診 0/1・複診 0/3（所選類別加粗、滿的變紅）
+// 某格的額度表：指定醫師＝該醫師；不指定＝伺服器算好的該格各有班醫師加總（slot.q）
+function slotQuotas(slotKey, dk) { var d = S.slotData; if (!d || !d.quotas) return {}; if (dk === '*') { var sl = (d.slots || []).filter(function(x){ return x.key === slotKey; })[0]; if (sl && sl.q) return sl.q; } return d.quotas[dk] || d.quotas['*'] || {}; }
+function slotEndMin(slotKey) { var d = S.slotData, sl = d && (d.slots || []).filter(function(x){ return x.key === slotKey; })[0]; return sl && sl.endMin != null ? sl.endMin : Math.floor(slotMin(slotKey) / 60) * 60 + 60; }
 function quotaLines(slotKey) {
-  var d = S.slotData; if (!d || !d.quotas) return ''; var dk = docQKey(document.getElementById('b-doctor').value), qs = d.quotas[dk] || d.quotas['*'] || {};
+  var d = S.slotData; if (!d || !d.quotas) return ''; var dk = docQKey(document.getElementById('b-doctor').value), qs = slotQuotas(slotKey, dk);
   var one = function(c){ var q = qs[c]; if (q === undefined) return ''; var u = catUsedOf(slotKey, dk, c), on = c === S.cat; return '<i class="' + (u >= q ? 'x' : (q - u <= 1 ? 'lo' : '')) + (on ? ' on' : '') + '">' + c.replace(/^(健保|減重)/, '') + ' ' + u + '/' + q + '</i>'; };
   return '<em>健保</em>' + one('健保初診') + one('健保複診') + '<br><em>減重</em>' + one('減重初診') + one('減重複診');
 }
 // 已約數：指定醫師＝該醫師的＋不指定醫師的；不指定＝該時段所有醫師的（與後端 docMatch 一致）
 function catUsedOf(slotKey, dk, cat) { var m = ((S.slotData || {}).used || {})[slotKey] || {}, n = 0; Object.keys(m).forEach(function(key){ var sp = key.lastIndexOf('|'), k = key.slice(0, sp); if (key.slice(sp + 1) === cat && (dk === '*' || k === dk || k === '*')) n += m[key]; }); return n; }
-function quotaInfo(slotKey) { var d = S.slotData; if (!d || !d.quotas) return null; var dk = docQKey(document.getElementById('b-doctor').value), q = (d.quotas[dk] || d.quotas['*'] || {})[S.cat]; if (q === undefined) return null; var u = catUsedOf(slotKey, dk, S.cat); return { used: u, quota: q, left: q - u }; }
+function quotaInfo(slotKey) { var d = S.slotData; if (!d || !d.quotas) return null; var dk = docQKey(document.getElementById('b-doctor').value), q = slotQuotas(slotKey, dk)[S.cat]; if (q === undefined) return null; var u = catUsedOf(slotKey, dk, S.cat); return { used: u, quota: q, left: q - u }; }
 
 // 病人目錄快取：登入後載入、每 2 分鐘與每次預約成功後更新；姓名比對在本機即時完成
 var DIR_REFRESH_MS = 120000;
@@ -964,7 +967,9 @@ function acShow(typed, list, field) {
 function acEnter() { if (S.acList && S.acList.length === 1 && !document.getElementById('acl').classList.contains('hidden')) acPick(0); }
 function acPick(i) {
   var p = S.acList[i]; if (!p) return;
-  document.getElementById('b-name').value = p.name; document.getElementById('b-pid').value = p.pid;
+  var badName = /\uFFFD/.test(p.name || ''); // 展望傳來的姓名含無法辨識字（黑色菱形）→ 不帶入，請櫃檯手動輸入，避免寫進預約紀錄讓展望匯不進去
+  document.getElementById('b-name').value = badName ? '' : p.name; document.getElementById('b-pid').value = p.pid;
+  if (badName) { setTimeout(function(){ toast('展望病歷的姓名含有無法辨識的字（' + p.name + '），請手動輸入正確姓名；打不出的字可用同音字或「○」代替並在備註註明', 'err'); document.getElementById('b-name').focus(); }, 50); }
   if (p.birth) document.getElementById('b-birth').value = p.birth;
   if (p.phone) document.getElementById('b-phone').value = p.phone;
   if (p.chartNo) document.getElementById('b-chart').value = p.chartNo;
@@ -1249,7 +1254,7 @@ function editLoadSlots() {
     var same = date === b.date;
     box.innerHTML = d.slots.map(function(s) {
       var cnt = s.count - (same && s.key === b.slot ? 1 : 0); // 自己原本佔的名額不算
-      var full = cnt >= s.cap, cur = same && s.key === b.slot, on = S.edit.slot === s.key && same, past = slotPassed(date, (s.min != null ? s.min : slotMin(s.key)) + 60) && !cur;
+      var full = cnt >= s.cap, cur = same && s.key === b.slot, on = S.edit.slot === s.key && same, past = slotPassed(date, s.endMin != null ? s.endMin : Math.floor((s.min != null ? s.min : slotMin(s.key)) / 60) * 60 + 60) && !cur;
       return '<div class="es' + (past ? ' past' : (full && !cur ? ' full' : '')) + (on ? ' on' : '') + '" data-m="' + (s.min != null ? s.min : slotMin(s.key)) + '" onclick="' + (past ? "toast('此時段已經過了','err')" : 'editPick(\'' + s.key + '\',' + (full && !cur) + ',' + cnt + ',' + s.cap + ')') + '"><b>' + s.key + '</b><small>' + (cur ? '目前' : past ? '已過' : (full ? '已額滿' : cnt + '/' + s.cap)) + '</small></div>';
     }).join('') || '<div class="empty">此日無可預約時段</div>';
     if (!same) S.edit.slot = '';
@@ -1281,7 +1286,7 @@ function editApplyDoctor() {
   if (!doc || /不指定/.test(doc) || !sched || !sched.sessions) { els.forEach(function(x){ x.classList.remove('off'); }); if (note) note.textContent = ''; return; }
   var nd = normDoc(doc), ranges = [];
   ['早', '午', '晚'].forEach(function(k){ (sched.sessions[k] || []).forEach(function(x){ if (normDoc(x.n) === nd) ranges.push([slotMin(x.s), slotMin(x.e), x.s + '–' + x.e]); }); });
-  els.forEach(function(x){ var m = +x.dataset.m; var ok = ranges.some(function(r){ return m < r[1] && m + 60 > r[0]; }); x.classList.toggle('off', !ok && !x.classList.contains('past')); if (!ok && x.classList.contains('on')) { x.classList.remove('on'); S.edit.slot = ''; } });
+  els.forEach(function(x){ var m = +x.dataset.m, me = +x.dataset.e || (m + 60); var ok = ranges.some(function(r){ return m < r[1] && me > r[0]; }); x.classList.toggle('off', !ok && !x.classList.contains('past')); if (!ok && x.classList.contains('on')) { x.classList.remove('on'); S.edit.slot = ''; } });
   if (note) note.innerHTML = ranges.length ? '本日看診 ' + ranges.map(function(r){ return r[2]; }).join('、') + '，僅開放對應時段' : '<span style="color:var(--red)">本日無門診（如代診請選不指定）</span>';
 }
 function editPick(key, full, cnt, cap) {
