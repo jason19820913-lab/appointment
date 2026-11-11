@@ -109,6 +109,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .slot .qline{display:block;font-size:11.5px;line-height:1.55;color:#4A6A60;white-space:nowrap;text-align:left;padding:0 2px}.slot .qline em{font-style:normal;color:var(--mut);margin-right:4px}.slot .qline i{font-style:normal;margin-right:7px}.slot .qline i.on{font-weight:700;color:var(--teal);text-decoration:underline;text-underline-offset:2px}.slot .qline i.lo{color:var(--amb)}.slot .qline i.x{color:var(--red)}.slot.on .qline{color:var(--teal)}.slot.past .qline,.slot.full .qline{color:var(--mut)}.slot.past .qline i,.slot.full .qline i{color:var(--mut)}
 .slot .who .pp.clk{cursor:pointer;border-bottom:1px dotted #9db5ac}.slot .who .pp.clk:hover{color:var(--pri)}.ct{font-style:normal;font-size:10px;padding:0 4px;border-radius:4px;background:#e4efe9;color:#2f6b55;margin-left:2px;vertical-align:1px}.ct.f{background:#fdeceb;color:var(--red)}.ct.wl{background:#fff3e0;color:#b36b00}
 .lt th.pck,.lt td.pck{width:40px;min-width:40px;padding:0 4px 0 12px;text-align:center;vertical-align:middle}.lt td.pck input,.lt th.pck input{appearance:auto;-webkit-appearance:checkbox;width:18px;height:18px;margin:0;padding:0;border:0;background:none;box-shadow:none;cursor:pointer;accent-color:var(--pri);vertical-align:middle;display:inline-block}.pdsel{background:#eef6f2;border-radius:10px;padding:8px 12px;margin:-4px 0 10px;gap:10px}.pdsel span{font-weight:600;color:var(--pri)}
+.lt td.qno{white-space:nowrap}.qin{display:inline-flex;gap:4px;align-items:center}.qin input{width:58px;height:34px;padding:0 8px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center}.qin .btn.sm{padding:0 10px;height:34px}
 .slotlist .row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line)}.slotlist .row.clk{cursor:pointer}.slotlist .row.clk:hover{background:#f3f8f6}.slotlist .row em{font-style:normal;color:var(--mut);font-size:12px}
 .slot .who{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:12px;line-height:1.5;color:#3E5A52;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot.on .who{color:var(--teal);border-top-color:var(--teal-b)}.slot.past .who{color:#98A5A0}.slot.full .who{color:var(--mut)}
@@ -356,7 +357,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
     <div class="swarn hidden" id="li-swarn"></div>
     <div class="lk" id="li-kpi"></div>
     <div class="card" style="padding:0;overflow:hidden">
-      <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>序號</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
+      <div class="tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>#</th><th title="展望報到後的看診號碼：展望回傳或櫃檯填入，會推播給已綁定 LINE 的民眾">報到序號</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
       <div class="empty hidden" id="li-empty">此日無預約</div>
       <div class="lfoot"><span><i class="sw red"></i>紅色列：民眾已取消（LINE 或電話），名額可遞補</span><span><i class="sw amb"></i>黃色列：時段已過仍未報到</span><span class="r"><span id="li-live" style="margin-right:14px;color:var(--teal)">● 每 15 秒自動檢查</span><span id="li-count"></span></span></div>
     </div>
@@ -446,7 +447,7 @@ function logoFallback(img) {
 // ==================== API ====================
 // opts.silent：背景自動更新（名單輪詢／目錄／時段背景刷新）逾時或失敗時不跳紅框，只在畫面角落標示，下一輪自動再試
 // 會改資料的動作：只在「Google 還沒開始執行就回錯誤頁／429／503」時重試；純讀取動作連網路失敗也重試
-var WRITE_ACTIONS = /^(createBooking|checkIn|cancelBooking|updateBooking|deleteBooking|restoreBooking|setDoctor|notifySched|sendReminders|pendingAction|pendingSkipBatch|importSchedule|syncDoctors|syncClinics|syncBindings|logout)$/;
+var WRITE_ACTIONS = /^(createBooking|checkIn|cancelBooking|updateBooking|deleteBooking|restoreBooking|setDoctor|notifySched|sendReminders|pendingAction|pendingSkipBatch|setSeq|importSchedule|syncDoctors|syncClinics|syncBindings|logout)$/;
 var GET_RETRIES = 3, GET_RETRY_MS = [1200, 2500];
 function get(params, cb, btn, opts) {
   opts = opts || {};
@@ -1195,7 +1196,7 @@ function renderList() {
       var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>' + noticeTag(b);
       ops = '<button class="obtn red" onclick="openEdit(' + i + ')">改約</button> ' + ops.replace('<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ', '');
     }
-    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + (b.cat ? '<br><small style="color:var(--mut)">' + esc(b.cat) + '</small>' : '') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="qno">' + qnoCell(b, i) + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + (b.cat ? '<br><small style="color:var(--mut)">' + esc(b.cat) + '</small>' : '') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td><div class="ops">' + ops + del + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
@@ -1207,6 +1208,21 @@ function sendRemindersNow() {
     toast(d.date + '：成功 ' + d.sent + '、未綁定 ' + d.skipped + '、失敗 ' + d.failed + (d.fails && d.fails.length ? '（' + d.fails.join('；') + '）' : ''), d.failed ? 'err' : 'ok');
     loadList();
   }, document.getElementById('li-remind'));
+}
+// 報到序號欄：有號碼→顯示＋推播狀態（可重推）；沒有且未取消→小輸入框，Enter 或 ✓ 送出（會一併標已報到並推播）
+function qnoCell(b, i) {
+  if (/取消/.test(b.status)) return '';
+  if (b.qno) return '<b style="font-size:17px">' + esc(b.qno) + '</b><br><small style="color:' + (b.qnoPushed ? 'var(--pri)' : 'var(--mut)') + '">' + (b.qnoPushed ? 'LINE ✓ ' + esc(String(b.qnoPushed).slice(11, 16)) : (b.bound ? '<a href="#" onclick="setSeqGo(' + i + ',null,true);return false" title="重新推播號碼給民眾">未推播，重推</a>' : '未綁定')) + '</small>';
+  return '<span class="qin"><input inputmode="numeric" maxlength="4" placeholder="號碼" aria-label="報到序號" onkeydown="if(event.key===\'Enter\'){setSeqGo(' + i + ',this);return false}"><button class="btn sm" onclick="setSeqGo(' + i + ',this.previousElementSibling)" title="登記序號並推播">✓</button></span>';
+}
+function setSeqGo(i, el, repush) {
+  var b = S.view[i]; if (!b) return;
+  var seq = repush ? b.qno : String(el && el.value || '').trim(); if (!seq) return toast('請輸入號碼', 'err');
+  get({ action:'setSeq', id: b.id, seq: seq, repush: repush ? '1' : '0' }, function(d) {
+    if (d.error) return toast(d.error, 'err');
+    toast(b.name + ' 第 ' + d.seq + ' 號' + (d.pushed ? '，已推播到 LINE' : '（' + (d.note || '未推播') + '）'), d.pushed ? 'ok' : '');
+    loadList();
+  }, el && el.tagName === 'BUTTON' ? el : null);
 }
 function opCheck(i, undo) { var b = S.view[i]; if (!b) return; get({ action:'checkIn', id:b.id, undo:undo ? '1' : '0' }, function(d){ if (d.error) return toast(d.error, 'err'); toast(undo ? '已取消報到' : b.name + ' 報到完成', 'ok'); loadList(); }); }
 function opCancel(i) { var b = S.view[i]; if (!b) return; if (!confirm('確定取消 ' + b.name + ' ' + b.slot + ' 的預約？')) return; get({ action:'cancelBooking', id:b.id }, function(d){ if (d.error) return toast(d.error, 'err'); toast('已取消', 'ok'); closeModal(); loadList(); }); }
