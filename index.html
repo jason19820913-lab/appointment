@@ -1213,7 +1213,8 @@ function sendRemindersNow() {
 // 報到序號欄：有號碼→顯示＋推播狀態（可重推）；沒有且未取消→小輸入框，Enter 或 ✓ 送出（會一併標已報到並推播）
 function qnoCell(b, i) {
   if (/取消/.test(b.status)) return '';
-  if (b.qno) return '<b style="font-size:17px">' + esc(b.qno) + '</b><br><small style="color:' + (b.qnoPushed ? 'var(--pri)' : 'var(--mut)') + '">' + (b.qnoPushed ? 'LINE ✓ ' + esc(String(b.qnoPushed).slice(11, 16)) : (b.bound ? '<a href="#" onclick="setSeqGo(' + i + ',null,true);return false" title="重新推播號碼給民眾">未推播，重推</a>' : '未綁定')) + '</small>';
+  if (b.qno) { var qp = String(b.qnoPushed || ''), ok = /^\d{4}-\d{2}-\d{2}/.test(qp), failed = !!qp && !ok;
+    return '<b style="font-size:17px">' + esc(b.qno) + '</b><br><small style="color:' + (ok ? 'var(--pri)' : failed ? 'var(--red)' : 'var(--mut)') + '">' + (ok ? 'LINE ✓ ' + esc(qp.slice(11, 16)) : (failed ? '<span title="' + esc(qp) + '">' + esc(qp.replace(/^(失敗|未推播)：/, '').slice(0, 16)) + '</span> · ' : '') + (b.bound ? '<a href="#" onclick="setSeqGo(' + i + ',null,true);return false" title="' + esc(qp || '尚未推播') + '">' + (failed ? '重推' : '未推播，重推') + '</a>' : '未綁定')) + '</small>'; }
   return '<span class="qin"><input inputmode="numeric" maxlength="4" placeholder="號碼" aria-label="報到序號" onkeydown="if(event.key===\'Enter\'){setSeqGo(' + i + ',this);return false}"><button class="btn sm" onclick="setSeqGo(' + i + ',this.previousElementSibling)" title="登記序號並推播">✓</button></span>';
 }
 function setSeqGo(i, el, repush) {
