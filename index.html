@@ -1046,6 +1046,7 @@ function submitBooking() {
       // 四類額度的已約數也要加上這筆（時段×醫師×類別），否則框內數字要等背景更新才會動
       c.d.used = c.d.used || {}; var uk = docQKey(p.doctor) + '|' + catN; (c.d.used[p.slot] = c.d.used[p.slot] || {})[uk] = (c.d.used[p.slot][uk] || 0) + 1;
       c.at = Date.now() - SLOT_STALE_MS - 1; } // 標成「舊」→ 立即用本機資料重畫，並背景向伺服器要最新
+    if (d.warn) setTimeout(function(){ toast('預約已成功，但附帶動作有錯：' + d.warn, 'err'); }, 2500); // 後端寫入成功、附帶動作（LINE／病人主檔）失敗時提示，不要讓櫃檯重按
     if (p.pendingId) { S.pendingOrder = null; setPendBadge(Math.max(0, (S.pendCount || 1) - 1)); toast('待排回診已轉為「已排」', 'ok'); }
     resetForm(); loadSlots(); loadDirectory(); // 先清空表單，避免下一位帶到上一位資料
     var line = d.bound
