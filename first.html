@@ -133,7 +133,8 @@ function api(params, cb, btn, txt) {
 // ===== 院區清單 =====
 api({ action:'pubConfig' }, function(d) {
   if (d.error) { $('notice').textContent = d.error; $('notice').classList.remove('hidden'); return; }
-  S.cfg = d; var list = d.allClinics && d.allClinics.length ? d.allClinics : d.clinics;
+  S.cfg = d; var list = d.allClinics || []; // 初診單＝全部啟用院區，與「網路預約」開放哪些院區無關（那是 d.clinics）
+  if (!list.length) { $('notice').textContent = '院區清單載入失敗（後端版本過舊，請更新 Code.gs）'; $('notice').classList.remove('hidden'); }
   $('b-clinic').innerHTML = list.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
 });
 
