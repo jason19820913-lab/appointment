@@ -52,7 +52,7 @@ h2{font-size:18px;margin:0 0 14px}
 
   <div id="v-form">
     <div class="card" style="padding:12px 16px;margin-bottom:12px"><div class="hint" id="liff-state">正在連線 LINE…</div><div id="notice" class="hint hidden"></div></div>
-    <form class="card" id="b-form" autocomplete="on" onsubmit="return false"><h2>初診單</h2>
+    <form class="card" id="b-form" autocomplete="on" method="post" action="#" onsubmit="return false"><h2>初診單</h2>
       <div id="ff-me" class="hidden" style="margin-bottom:10px"></div>
       <div class="hint" id="b-formhint" style="margin-bottom:10px">第一次到本院看診請先填寫資料；抵達診所後仍須持健保卡到櫃檯掛號，並告知已填妥線上初診單。身分證與出生年月日用於 LINE 綁定核對，在 LINE 內填寫會一併完成綁定，之後可收到提醒與看診號碼。</div>
       <div class="fld"><label>院區 <b>*</b></label><select id="b-clinic" onchange="S.slots=null"></select></div>
