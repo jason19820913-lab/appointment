@@ -53,6 +53,7 @@ h2{font-size:18px;margin:0 0 14px}
   <div id="v-form">
     <div class="card" style="padding:12px 16px;margin-bottom:12px"><div class="hint" id="liff-state">正在連線 LINE…</div><div id="notice" class="hint hidden"></div></div>
     <form class="card" id="b-form" autocomplete="on" onsubmit="return false"><h2>初診單</h2>
+      <div id="ff-me" class="hidden" style="margin-bottom:10px"></div>
       <div class="hint" id="b-formhint" style="margin-bottom:10px">第一次到本院看診請先填寫資料；抵達診所後仍須持健保卡到櫃檯掛號，並告知已填妥線上初診單。身分證與出生年月日用於 LINE 綁定核對，在 LINE 內填寫會一併完成綁定，之後可收到提醒與看診號碼。</div>
       <div class="fld"><label>院區 <b>*</b></label><select id="b-clinic" onchange="S.slots=null"></select></div>
       <div class="fld"><label>姓名 <b>*</b></label><input id="b-name" name="name" autocomplete="name" placeholder="請輸入本名" maxlength="20"></div>
@@ -127,6 +128,7 @@ function api(params, cb, btn, txt) {
     S.idToken = liff.getIDToken() || ''; S.accessToken = liff.getAccessToken() || '';
     var okMsg = function(name){ st.innerHTML = '✓ 已連結 LINE' + (name ? '（' + name + '）' : '') + '，送出後會一併完成 LINE 綁定'; };
     liff.getProfile().then(function(p){ S.uid = p.userId; okMsg(p.displayName); }).catch(function(){ okMsg(''); });
+    loadMe();
   }).catch(function(e){ st.textContent = 'LINE 連線失敗（' + (e && e.message || e) + '），仍可送出初診單，但不會綁定 LINE。'; });
 })();
 
@@ -138,6 +140,19 @@ api({ action:'pubConfig' }, function(d) {
   $('b-clinic').innerHTML = list.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
 });
 
+// 自動帶入：(1) 這支 LINE 已綁過的人（家人或自己）→ 手機／姓名／身分證／生日可一鍵帶入；(2) 這支手機上次填過的手機與地址（localStorage）
+function loadMe() {
+  if ((!S.idToken && !S.accessToken) || S.meLoaded) return; S.meLoaded = true;
+  api({ action:'pubMe', idToken: S.idToken, accessToken: S.accessToken }, function(d) {
+    if (!d.people || !d.people.length) return; S.me = d.people;
+    var box = $('ff-me'); box.classList.remove('hidden');
+    box.innerHTML = '<div class="hint">您的 LINE 已綁定：' + d.people.map(function(x, i){ return '<button type="button" class="btn sec" style="margin:6px 6px 0 0;width:auto;padding:8px 12px;font-size:14px" onclick="pickMe(' + i + ')">' + esc(x.name || '') + ' ' + esc(x.pidMasked) + '</button>'; }).join('') + '<br>點一下可帶入資料（替家人填初診單請直接輸入）</div>';
+    if (d.people.length === 1 && !$('b-phone').value) { $('b-phone').value = d.people[0].phone || ''; }
+  }, null, '');
+}
+function pickMe(i) { var x = S.me[i]; if (!x) return; if (x.name) $('b-name').value = x.name; $('b-pid').value = x.pid; pidHint($('b-pid')); if (x.birth) $('b-birth').value = x.birth; if (x.phone) $('b-phone').value = x.phone; if (x.clinicCode) { var sel = $('b-clinic'); for (var k = 0; k < sel.options.length; k++) if (sel.options[k].value === x.clinicCode) sel.value = x.clinicCode; } }
+(function restoreLast() { try { var v = JSON.parse(localStorage.getItem('ffLast') || 'null'); if (!v) return; if (v.phone && !$('b-phone').value) $('b-phone').value = v.phone; if (v.address && !$('b-address').value) $('b-address').value = v.address; } catch (e) {} })();
+function saveLast(f) { try { localStorage.setItem('ffLast', JSON.stringify({ phone: f.phone, address: f.address })); } catch (e) {} }
 function formData() {
   birthTidy();
   return { clinicCode: $('b-clinic').value, name: $('b-name').value.trim(), pid: $('b-pid').value.trim(), birth: $('b-birth').value.trim(), phone: $('b-phone').value.trim(), address: $('b-address').value.trim(),
@@ -155,6 +170,7 @@ function submitFirstForm() {
   f.action = 'pubFirstForm'; f.consent = $('b-consent').checked ? '1' : '';
   api(f, function(d) {
     if (d.error) return showErr('b-err', d.error);
+    saveLast(f);
     $('fd-line').innerHTML = d.bound ? '✓ 已完成 LINE 綁定，之後看診提醒與看診號碼會傳到您的 LINE。' : '未完成 LINE 綁定（' + esc(d.bindNote || '') + '）。從金鶯診所 LINE 官方帳號開啟本頁填寫即可綁定。';
     telLink($('fd-tel'), d.phone); $('v-form').classList.add('hidden'); $('v-fdone').classList.remove('hidden'); window.scrollTo(0, 0);
   }, $('b-next'), '送出中…');
