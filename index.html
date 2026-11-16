@@ -110,6 +110,7 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .slot .who .pp.clk{cursor:pointer;border-bottom:1px dotted #9db5ac}.slot .who .pp.clk:hover{color:var(--pri)}.ct{font-style:normal;font-size:10px;padding:0 4px;border-radius:4px;background:#e4efe9;color:#2f6b55;margin-left:2px;vertical-align:1px}.ct.f{background:#fdeceb;color:var(--red)}.ct.wl{background:#fff3e0;color:#b36b00}
 .lt th.pck,.lt td.pck{width:40px;min-width:40px;padding:0 4px 0 12px;text-align:center;vertical-align:middle}.lt td.pck input,.lt th.pck input{appearance:auto;-webkit-appearance:checkbox;width:18px;height:18px;margin:0;padding:0;border:0;background:none;box-shadow:none;cursor:pointer;accent-color:var(--pri);vertical-align:middle;display:inline-block}.pdsel{background:#eef6f2;border-radius:10px;padding:8px 12px;margin:-4px 0 10px;gap:10px}.pdsel span{font-weight:600;color:var(--pri)}
 .lt td.qno{white-space:nowrap}.qin{display:inline-flex;gap:4px;align-items:center}.qin input{width:58px;height:34px;padding:0 8px;border:1px solid var(--line);border-radius:8px;font-size:15px;text-align:center}.qin .btn.sm{padding:0 10px;height:34px}
+.swarn.webchg{background:#EEF4FB;border-color:#B9D0EA;color:#1F4E79}.pill.wc{background:#EEF4FB;color:#1F4E79;border:1px solid #B9D0EA;font-size:12px;padding:1px 6px}
 .slotlist .row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line)}.slotlist .row.clk{cursor:pointer}.slotlist .row.clk:hover{background:#f3f8f6}.slotlist .row em{font-style:normal;color:var(--mut);font-size:12px}
 .slot .who{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line2);font-size:12px;line-height:1.5;color:#3E5A52;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot.on .who{color:var(--teal);border-top-color:var(--teal-b)}.slot.past .who{color:#98A5A0}.slot.full .who{color:var(--mut)}
@@ -359,6 +360,7 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <button class="btn sec" id="li-remind" onclick="sendRemindersNow()" title="立即補發明天所有已綁定且尚未提醒的預約">📨 發送明日提醒</button>
     </div>
     <div class="swarn hidden" id="li-swarn"></div>
+    <div class="swarn webchg hidden" id="li-webchg"></div>
     <div class="lk" id="li-kpi"></div>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tw" id="li-tw"><table class="lt"><thead><tr><th style="width:64px">報到</th><th id="li-th-clinic" class="hidden">院區</th><th>時間 ↓</th><th>#</th><th title="展望報到後的看診號碼：展望回傳或櫃檯填入，會推播給已綁定 LINE 的民眾">報到序號</th><th>姓名</th><th>身分證</th><th>電話</th><th>方式</th><th>醫師</th><th>LINE 回覆</th><th>狀態</th><th>操作</th></tr></thead><tbody id="li-body"></tbody></table></div>
@@ -1127,8 +1129,8 @@ function loadList(silent) {
   var seq = ++_listSeq, lk = clinicSel + '|' + date, lc = S.listCache[lk];
   if (!silent) {
     // 切日期／院區：先用上次抓過的名單立刻顯示（標示更新中），再向伺服器要最新
-    if (lc) { S.list = lc.list; S.listNow = lc.now; renderList(); if (live) live.textContent = '● 更新 ' + dateTxt(date) + ' 名單中…'; }
-    else { S.list = []; renderList(); if (live) live.textContent = '載入 ' + dateTxt(date) + ' 名單…'; }
+    if (lc) { S.list = lc.list; S.movedOut = lc.movedOut || []; S.listNow = lc.now; renderList(); if (live) live.textContent = '● 更新 ' + dateTxt(date) + ' 名單中…'; }
+    else { S.list = []; S.movedOut = []; renderList(); if (live) live.textContent = '載入 ' + dateTxt(date) + ' 名單…'; }
     // 登入時帶回的今日名單還很新（< 30 秒）→ 不必再抓，交給 10 秒版本輪詢確認
     if (lc && S.listPre === lk && S.listAt && Date.now() - S.listAt < 30000) { _listBusy = false; if (live) { live.style.opacity = '1'; var n0 = new Date(S.listAt); live.textContent = '● 每 15 秒自動檢查 · 最後更新 ' + p2(n0.getHours()) + ':' + p2(n0.getMinutes()) + ':' + p2(n0.getSeconds()); } S.listPre = ''; return; }
   }
@@ -1138,8 +1140,8 @@ function loadList(silent) {
     if (d.date && d.date !== date) { _listBusy = false; return; }
     _listBusy = false; if (live) live.style.opacity = '1';
     if (d.error) { if (!silent) toast(d.error, 'err'); return; }
-    S.list = d.list.filter(function(b){ return !b.date || b.date === date; }); S.listNow = d.now || ''; S.listVer = d.ver || ''; S.listAt = Date.now();
-    S.listCache[lk] = { list: S.list, now: S.listNow };
+    S.list = d.list.filter(function(b){ return !b.date || b.date === date; }); S.movedOut = d.movedOut || []; S.listNow = d.now || ''; S.listVer = d.ver || ''; S.listAt = Date.now();
+    S.listCache[lk] = { list: S.list, now: S.listNow, movedOut: S.movedOut };
     var n = new Date(); if (live) live.textContent = '● 每 15 秒自動檢查 · 最後更新 ' + p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds());
     // 醫師篩選選項：該院區名單 + 當日出現過的醫師
     var code = document.getElementById('li-clinic').value; var names = {};
@@ -1181,6 +1183,11 @@ function renderList() {
   document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
   document.getElementById('li-count').textContent = '顯示 ' + rows.length + ' / 共 ' + S.list.length + ' 筆 · 依時段、序號排序';
   // 班表異動橫幅：本日待報到中，預約醫師在官網班表該時段沒有看診者
+  // 民眾線上改約（LIFF）：本日名單上被民眾改過的（列內也有標示）＋從本日改到別天的（名單上看不到了，這裡列出）
+  var wcIn = S.list.filter(function(b){ return !!b.webChange; }), wcOut = S.movedOut || [], wb = document.getElementById('li-webchg');
+  if (wb) { if (wcIn.length || wcOut.length) { wb.innerHTML = '<span style="font-size:20px">📱</span><div><b>民眾線上改約：' + (wcIn.length + wcOut.length) + ' 筆</b><br>' +
+      wcIn.map(function(b){ var a = b.webChange.split('｜'); return esc(b.name) + '：' + esc(a[0]) + (a[1] ? ' <small style="color:var(--mut)">（' + esc(a[1].slice(5, 16)) + ' 改）</small>' : ''); }).concat(wcOut.map(function(m){ return esc(m.name) + '：原本日 ' + esc(m.from.split(' ')[1] || '') + ' → 改到 <b>' + esc(m.to.slice(5).replace('-', '/')) + '</b>（已移出本日名單）' + (m.at ? ' <small style="color:var(--mut)">（' + esc(m.at.slice(5, 16)) + ' 改）</small>' : ''); })).join('　·　') + '</div>';
+      wb.classList.remove('hidden'); } else wb.classList.add('hidden'); }
   var sw = S.list.filter(function(b){ return b.schedWarn && !/取消/.test(b.status) && b.status !== '已報到'; }); var bn = document.getElementById('li-swarn');
   if (sw.length) { bn.innerHTML = '<span style="font-size:20px">⚠️</span><div><b>官網班表異動：' + sw.length + ' 筆預約的醫師在該時段已無門診，請通知民眾改約或改醫師</b><br>' + sw.slice(0, 6).map(function(b){ return esc(b.slot) + ' ' + esc(b.name) + '（原 ' + esc(shortDoc(b.doctor)) + ' → 現 ' + esc((b.schedWarn.current || []).map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、') || '無醫師') + '）'; }).join('　·　') + (sw.length > 6 ? '　… 等 ' + sw.length + ' 筆' : '') + '</div>' + (document.getElementById('li-q').value ? '' : '<button class="btn sm sec" onclick="document.getElementById(\'li-q\').value=\'\';filterSw()">只看異動</button>') + (function(){ var real = sw.filter(function(b){ return b.schedWarn.mode !== '推估'; }), todo = real.filter(function(b){ return b.bound && !(b.schedNotice && b.schedNotice.to === curDocs(b)); }); return real.length ? '<button class="btn sm" id="li-nbtn" onclick="notifySched()" title="對本日班表異動且已綁定 LINE 的民眾發送異動通知（會如期回診／需另改約／取消）">📣 LINE 通知異動民眾' + (todo.length ? '（' + todo.length + ' 位待通知）' : '（皆已通知）') + '</button>' : ''; })(); bn.classList.remove('hidden'); }
   else bn.classList.add('hidden');
@@ -1201,7 +1208,7 @@ function renderList() {
       var cur = (b.schedWarn.current || []); st = '<span class="pill swp" title="官網班表' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '：此時段 ' + (cur.length ? cur.join('、') : '無醫師排班') + '">⚠ 班表異動' + (b.schedWarn.mode === '推估' ? '（推估）' : '') + '<br><small>' + (cur.length ? '該時段：' + esc(cur.map(function(x){ return shortDoc(x.split(' ')[0]); }).join('、')) : '該時段無醫師') + '</small></span>' + noticeTag(b);
       ops = '<button class="obtn red" onclick="openEdit(' + i + ')">改約</button> ' + ops.replace('<button class="obtn" onclick="openEdit(' + i + ')">修改</button> ', '');
     }
-    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="qno">' + qnoCell(b, i) + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + (b.cat ? '<br><small style="color:var(--mut)">' + esc(b.cat) + '</small>' : '') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td class="opsc"><div class="ops">' + ops + del + '</div></td></tr>';
+    return '<tr class="' + cls + '"><td>' + ck + '</td>' + (showClinic ? '<td><span class="pill grey" style="font-weight:700">' + esc(b.clinicName) + '</span></td>' : '') + '<td class="time"><b>' + b.slot + '</b></td><td>' + b.seq + '</td><td class="qno">' + qnoCell(b, i) + '</td><td class="name" style="cursor:pointer" onclick="openDetail(' + i + ')" title="查看詳細"><b>' + esc(b.name) + '</b>' + (b.webChange ? ' <span class="pill wc" title="' + esc(b.webChange) + '">📱 線上改約</span>' : '') + (b.note ? '<br><small style="color:var(--mut)">' + esc(b.note) + '</small>' : '') + '</td><td>' + b.pidMasked + '</td><td>' + (b.phone ? '<a href="tel:' + esc(b.phone) + '" style="color:var(--tx);text-decoration:none;white-space:nowrap">' + esc(fmtPhone(b.phone)) + '</a>' : '<span style="color:#B8C2BD">—</span>') + '</td><td>' + (b.type === '回診預約' ? '<span class="pill purp">回診預約</span>' : b.type === '網路預約' ? '<span class="pill ok">網路初診</span>' : '<span class="pill blue">電話預約</span>') + (b.cat ? '<br><small style="color:var(--mut)">' + esc(b.cat) + '</small>' : '') + '</td><td>' + (b.schedWarn && !cancelled && b.status !== '已報到' ? '<span style="color:var(--red);font-weight:700">' + esc(b.doctor) + '</span>' : esc(b.doctor)) + '</td><td>' + line + '</td><td>' + st + '</td><td class="opsc"><div class="ops">' + ops + del + '</div></td></tr>';
   }).join('');
   S.view = rows;
 }
