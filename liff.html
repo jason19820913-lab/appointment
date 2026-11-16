@@ -194,6 +194,7 @@ function api(params, cb, btn, txt) {
 
 // ===== 設定載入 =====
 api({ action:'pubConfig' }, function(d) {
+  setTimeout(openChangeFromLink, 0);
   if (d.error) { $('notice').textContent = d.error; $('notice').classList.remove('hidden'); return; }
   S.cfg = d;
   var opts = d.clinics.map(function(c){ return '<option value="' + c.code + '">' + c.name + '院區</option>'; }).join('');
@@ -227,7 +228,12 @@ function doQuery() {
   var v = birth.replace(/\D/g, ''); if (v.length === 7) birth = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) birth = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
   api({ action:'pubMyBookings', pid: pid, birth: birth, hp: $('hp').value, idToken: S.idToken, accessToken: S.accessToken }, function(d) {
     if (d.error) return showErr('q-err', d.error);
-    S.qList = d.list || []; S.qAuth = { pid: pid, birth: birth };
+    S.qAuth = { pid: pid, birth: birth }; renderQuery(d);
+  }, $('q-btn'), '查詢中…');
+}
+function renderQuery(d) {
+  {
+    S.qList = d.list || [];
     var box = $('q-result'); box.classList.remove('hidden');
     if (!d.list.length) { box.innerHTML = '<div class="note">目前沒有最近 30 天內或未來的預約。</div><button class="btn" style="margin-top:12px" onclick="$(\'r-pid\').value=$(\'q-pid\').value;$(\'r-birth\').value=$(\'q-birth\').value;go(\'rv\')">我要預約回診</button>'; return; }
     var td = (S.cfg && S.cfg.today) || '';
@@ -235,7 +241,19 @@ function doQuery() {
       var up = b.status === '待報到' && b.date >= td, cls = /取消/.test(b.status) ? 'color:#C0392B' : b.status === '已報到' ? 'color:#1E7F5C' : b.status === '未回診' ? 'color:#B7791F' : 'color:#1E7F5C;font-weight:700';
       return '<div class="okbox" style="margin-bottom:10px;text-align:left"><div><b>' + b.date.replace(/-/g, '/') + '（' + b.weekday + '）' + b.label + '</b></div><div>' + b.clinicName + '院區　' + b.doctor + '</div><div style="font-size:13px;color:var(--mut)">' + b.cat + (b.type === '網路預約' ? '・網路預約' : '') + '　<span style="' + cls + '">' + b.status + '</span></div>' + (b.canChange ? '<button type="button" class="btn" style="margin-top:8px;padding:10px;font-size:14px" onclick="startChange(\'' + b.id + '\')">修改日期時段（線上限改一次）</button>' : '') + (up && b.noChange ? '<div class="hint" style="margin-top:6px;font-size:13px">' + esc(b.noChange) + '</div>' : '') + (b.changed ? '<div class="hint" style="margin-top:4px;font-size:12px">已線上改約：' + esc(b.changed.split('｜')[0]) + '</div>' : '') + (up && b.cancelUrl ? '<a class="btn amb" style="margin-top:8px;text-decoration:none;text-align:center;padding:10px;font-size:14px" href="' + b.cancelUrl + '">取消此預約</a>' : '') + '</div>';
     }).join('') + '<button class="btn sec" style="margin-top:6px" onclick="$(\'r-pid\').value=$(\'q-pid\').value;$(\'r-birth\').value=$(\'q-birth\').value;go(\'rv\')">再預約一筆回診</button>';
-  }, $('q-btn'), '查詢中…');
+  }
+}
+// 回診提醒「修改日期時段」按鈕進來：?v=chg&id=預約編號&t=回覆token（LIFF 會把參數放在 liff.state）→ 免輸入身分證，直接帶出這筆、進選時段
+function urlParams() { var q = location.search; var m = q.match(/[?&]liff\.state=([^&]+)/); if (m) q += '&' + decodeURIComponent(m[1]).replace(/^\?/, ''); var o = {}; q.replace(/^\?/, '').split('&').forEach(function(kv){ if (!kv) return; var i = kv.indexOf('='); var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i)); if (k && !(k in o)) o[k] = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1).replace(/\+/g, ' ')); }); return o; }
+function openChangeFromLink() {
+  var u = urlParams(); if (u.v !== 'chg' || !u.id || !u.t || S.linkDone) return; S.linkDone = true;
+  go('query'); $('q-result').classList.remove('hidden'); $('q-result').innerHTML = '<div class="hint">讀取預約中…</div>';
+  api({ action:'pubMyBookings', id: u.id, t: u.t }, function(d) {
+    if (d.error) { $('q-result').innerHTML = ''; return showErr('q-err', d.error); }
+    S.qAuth = { id: u.id, t: u.t }; renderQuery(d);
+    var b = (d.list || []).filter(function(x){ return x.id === u.id; })[0];
+    if (b && b.canChange) startChange(b.id); else if (b && b.noChange) showErr('q-err', b.noChange);
+  });
 }
 function prefill(){ $('b-clinic').value = $('q-clinic').value; $('b-name').value = $('q-name').value; $('b-pid').value = $('q-pid').value; go('book'); }
 
@@ -333,7 +351,7 @@ function doBook() {
   if (S.mode === 'chg') {
     var doc = $('s-doctor').value; if (!S.date || !S.slot || !doc) return showErr('s-err', '請選擇日期、時段與醫師');
     var a = S.qAuth || {};
-    return api({ action:'pubReschedule', id: S.chg.id, pid: a.pid, birth: a.birth, date: S.date, slot: S.slot, doctor: doc, idToken: S.idToken, accessToken: S.accessToken, hp: $('hp').value }, function(d) {
+    return api({ action:'pubReschedule', id: S.chg.id, pid: a.pid, birth: a.birth, t: a.t, date: S.date, slot: S.slot, doctor: doc, idToken: S.idToken, accessToken: S.accessToken, hp: $('hp').value }, function(d) {
       if (d.error) return showErr('s-err', d.error);
       $('d-title').textContent = '✅ 改約成功';
       $('d-kv').innerHTML = '<span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + d.clinicName + '院區</b><span>原時段</span><b>' + d.from.replace(/-/g, '/') + '</b><span>新日期</span><b>' + d.date.replace(/-/g, '/') + '</b><span>新時段</span><b>' + d.label + '</b><span>醫師</span><b>' + d.doctor + '</b><span>姓名</span><b>' + esc(d.name) + '</b>';
