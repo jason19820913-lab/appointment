@@ -48,22 +48,22 @@ h2{font-size:18px;margin:0 0 14px}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><img src="https://jason19820913-lab.github.io/drking/logo.png" alt="" onerror="this.style.display='none'"><div><b>金鶯診所網路預約系統</b><small>健保複診線上預約・查詢・取消</small></div></div>
+  <div class="top"><img src="https://jason19820913-lab.github.io/drking/logo.png" alt="" onerror="this.style.display='none'"><div><b>金鶯診所網路預約系統</b><small>健保複診線上預約・查詢・修改・取消</small></div></div>
 
   <!-- 首頁 -->
   <div id="v-home">
     <div class="hero"><span class="tag">健保複診</span><h1>網路預約掛號</h1><p>曾在院區看過診的民眾，輸入身分證與生日即可線上預約回診；也可以查詢、取消自己的預約。初診請直接電洽院區櫃檯。</p><p id="notice" class="hidden" style="margin-top:10px"></p></div>
     <div class="card">
       <button class="btn" onclick="go('rv')">我要預約回診</button>
-      <button class="btn sec" onclick="go('query')">查詢我的預約</button>
+      <button class="btn sec" onclick="go('query')">查詢/修改我的預約</button>
       <div class="hint" style="margin-top:12px" id="liff-state">正在連線 LINE…</div>
     </div>
   </div>
 
   <!-- 查詢 -->
   <div id="v-query" class="hidden">
-    <div class="card"><h2>查詢我的預約</h2>
-      <div class="hint" style="margin-bottom:10px">輸入身分證與出生年月日即可查詢最近 30 天與未來的預約；待報到的預約可直接取消。</div>
+    <div class="card"><h2>查詢/修改我的預約</h2>
+      <div class="hint" style="margin-bottom:10px">輸入身分證與出生年月日即可查詢最近 30 天與未來的預約；待報到的預約可直接取消；明天以後的預約可線上修改日期時段一次。</div>
       <div id="q-me" class="hidden" style="margin-bottom:10px"></div>
       <select id="q-clinic" class="hidden"></select><input id="q-name" class="hidden">
       <div class="fld"><label>身分證字號 <b>*</b></label><input id="q-pid" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"></div>
@@ -89,6 +89,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="fld"><label>是否有藥物過敏 <b>*</b></label>
         <div class="seg"><button type="button" id="al-no" class="on" onclick="setAllergy(false)">無</button><button type="button" id="al-yes" onclick="setAllergy(true)">有</button></div>
         <input id="b-allergy" class="hidden" style="margin-top:8px" placeholder="請填寫過敏藥物名稱" maxlength="100"></div>
+      <label class="ck hidden" id="b-consent-row" style="display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.6;margin:4px 0 8px"><input type="checkbox" id="b-consent" style="margin-top:5px"><span>我同意金鶯診所將我的 LINE 帳號與病歷資料連結，用於預約提醒、候診叫號、衛教與滿意度調查等通知（個人資料僅供本診所醫療服務使用）。</span></label>
       <input id="hp" class="hp" tabindex="-1" autocomplete="off">
       <div id="b-err" class="err hidden"></div>
       <button type="button" class="btn" id="b-next" onclick="checkFirst()">下一步：選擇日期時段</button>
@@ -124,7 +125,7 @@ h2{font-size:18px;margin:0 0 14px}
 
   <!-- 預約：選時段 -->
   <div id="v-slot" class="hidden">
-    <div class="card"><h2>第 2 步．選擇日期與時段</h2>
+    <div class="card"><h2 id="s-title">第 2 步．選擇日期與時段</h2>
       <div class="okbox" id="s-who"></div>
       <div style="margin:14px 0 6px;font-size:14px;color:var(--mut)">日期</div>
       <div class="days" id="days"></div>
@@ -133,13 +134,13 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="fld" style="margin-top:14px"><label>看診醫師 <b>*</b></label><select id="s-doctor"><option value="">請先選時段</option></select></div>
       <div id="s-err" class="err hidden"></div>
       <button class="btn" id="s-btn" onclick="doBook()" disabled>確認預約</button>
-      <a class="link" href="#" onclick="go(S.mode==='rv'?'rv':'book');return false">← 修改基本資料</a>
+      <a class="link" id="s-back" href="#" onclick="go(S.mode==='chg'?'query':(S.mode==='rv'?'rv':'book'));return false">← 修改基本資料</a>
     </div>
   </div>
 
   <!-- 成功 -->
   <div id="v-done" class="hidden">
-    <div class="card"><h2 style="color:var(--ok)">✅ 預約成功</h2>
+    <div class="card"><h2 style="color:var(--ok)" id="d-title">✅ 預約成功</h2>
       <div class="kv" id="d-kv"></div>
       <div class="okbox" id="d-line"></div>
       <div class="hint" style="margin-top:12px">看診當天請攜帶<b>健保卡</b>，提早 10 分鐘至櫃檯報到。看診前一天會再以 LINE 提醒您。</div>
@@ -203,6 +204,7 @@ api({ action:'pubConfig' }, function(d) {
   if (d.notice) { $('notice').textContent = d.notice; $('notice').classList.remove('hidden'); }
 });
 function clinicOf(code){ return (S.cfg && S.cfg.clinics || []).filter(function(c){ return c.code === code; })[0] || {}; }
+function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
 function telLink(a, phone){ if (phone) { a.href = 'tel:' + phone.replace(/[^\d+]/g, ''); a.textContent = '📞 撥打院區電話 ' + phone; a.classList.remove('hidden'); } else a.classList.add('hidden'); }
 
 // ===== 查詢 =====
@@ -225,12 +227,13 @@ function doQuery() {
   var v = birth.replace(/\D/g, ''); if (v.length === 7) birth = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) birth = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
   api({ action:'pubMyBookings', pid: pid, birth: birth, hp: $('hp').value, idToken: S.idToken, accessToken: S.accessToken }, function(d) {
     if (d.error) return showErr('q-err', d.error);
+    S.qList = d.list || []; S.qAuth = { pid: pid, birth: birth };
     var box = $('q-result'); box.classList.remove('hidden');
     if (!d.list.length) { box.innerHTML = '<div class="note">目前沒有最近 30 天內或未來的預約。</div><button class="btn" style="margin-top:12px" onclick="$(\'r-pid\').value=$(\'q-pid\').value;$(\'r-birth\').value=$(\'q-birth\').value;go(\'rv\')">我要預約回診</button>'; return; }
     var td = (S.cfg && S.cfg.today) || '';
     box.innerHTML = '<div class="hint" style="margin-bottom:8px">' + (d.name ? d.name + ' 的預約' : '預約紀錄') + '（最近 30 天與未來）</div>' + d.list.map(function(b) {
       var up = b.status === '待報到' && b.date >= td, cls = /取消/.test(b.status) ? 'color:#C0392B' : b.status === '已報到' ? 'color:#1E7F5C' : b.status === '未回診' ? 'color:#B7791F' : 'color:#1E7F5C;font-weight:700';
-      return '<div class="okbox" style="margin-bottom:10px;text-align:left"><div><b>' + b.date.replace(/-/g, '/') + '（' + b.weekday + '）' + b.label + '</b></div><div>' + b.clinicName + '院區　' + b.doctor + '</div><div style="font-size:13px;color:var(--mut)">' + b.cat + (b.type === '網路預約' ? '・網路預約' : '') + '　<span style="' + cls + '">' + b.status + '</span></div>' + (up && b.cancelUrl ? '<a class="btn amb" style="margin-top:8px;text-decoration:none;text-align:center;padding:10px;font-size:14px" href="' + b.cancelUrl + '">取消此預約</a>' : '') + '</div>';
+      return '<div class="okbox" style="margin-bottom:10px;text-align:left"><div><b>' + b.date.replace(/-/g, '/') + '（' + b.weekday + '）' + b.label + '</b></div><div>' + b.clinicName + '院區　' + b.doctor + '</div><div style="font-size:13px;color:var(--mut)">' + b.cat + (b.type === '網路預約' ? '・網路預約' : '') + '　<span style="' + cls + '">' + b.status + '</span></div>' + (b.canChange ? '<button type="button" class="btn" style="margin-top:8px;padding:10px;font-size:14px" onclick="startChange(\'' + b.id + '\')">修改日期時段（線上限改一次）</button>' : '') + (up && b.noChange ? '<div class="hint" style="margin-top:6px;font-size:13px">' + esc(b.noChange) + '</div>' : '') + (b.changed ? '<div class="hint" style="margin-top:4px;font-size:12px">已線上改約：' + esc(b.changed.split('｜')[0]) + '</div>' : '') + (up && b.cancelUrl ? '<a class="btn amb" style="margin-top:8px;text-decoration:none;text-align:center;padding:10px;font-size:14px" href="' + b.cancelUrl + '">取消此預約</a>' : '') + '</div>';
     }).join('') + '<button class="btn sec" style="margin-top:6px" onclick="$(\'r-pid\').value=$(\'q-pid\').value;$(\'r-birth\').value=$(\'q-birth\').value;go(\'rv\')">再預約一筆回診</button>';
   }, $('q-btn'), '查詢中…');
 }
@@ -293,9 +296,20 @@ function checkRevisit() {
 }
 
 // ===== 預約：第 2 步 =====
+// ===== 線上改約：查詢結果 → 選新時段（只列明天以後；依原預約類別看額度）=====
+function startChange(id) {
+  var b = (S.qList || []).filter(function(x){ return x.id === id; })[0]; if (!b || !b.canChange) return;
+  S.mode = 'chg'; S.chg = b;
+  $('s-who').innerHTML = '<b>修改預約</b>　' + esc(b.clinicName) + '院區<br>原：' + b.date.replace(/-/g, '/') + '（' + b.weekday + '）' + b.label + '　' + esc(b.doctor) + '<br><span style="font-size:13px;color:var(--mut)">只能改到明天以後；線上改約限一次，之後如需更改請電洽院區</span>';
+  loadSlots();
+}
 function loadSlots() {
   go('slot'); S.date = ''; S.slot = ''; $('s-btn').disabled = true; $('days').innerHTML = '<div class="hint">載入可預約時段…</div>'; $('slots').innerHTML = '';
-  var rv = S.mode === 'rv'; api({ action: rv ? 'pubSlots2' : 'pubSlots', clinicCode: $(rv ? 'r-clinic' : 'b-clinic').value }, function(d) {
+  var chg = S.mode === 'chg';
+  $('s-title').textContent = chg ? '修改預約．選擇新的日期與時段' : '第 2 步．選擇日期與時段'; $('s-btn').textContent = chg ? '確認改約' : '確認預約'; $('s-back').textContent = chg ? '← 回查詢結果' : '← 修改基本資料';
+  var rv = S.mode === 'rv' || chg;
+  var q = chg ? { action:'pubSlots2', clinicCode: S.chg.clinicCode, cat: S.chg.cat, fromTomorrow: 1 } : { action: rv ? 'pubSlots2' : 'pubSlots', clinicCode: $(rv ? 'r-clinic' : 'b-clinic').value };
+  api(q, function(d) {
     if (d.error) return showErr('s-err', d.error);
     S.slots = d; var dates = Object.keys(d.dates);
     var avail = function(s){ return !s.full && s.doctors.length > 0; };
@@ -316,6 +330,17 @@ function pickSlot(key) {
   $('s-btn').disabled = false; showErr('s-err', '');
 }
 function doBook() {
+  if (S.mode === 'chg') {
+    var doc = $('s-doctor').value; if (!S.date || !S.slot || !doc) return showErr('s-err', '請選擇日期、時段與醫師');
+    var a = S.qAuth || {};
+    return api({ action:'pubReschedule', id: S.chg.id, pid: a.pid, birth: a.birth, date: S.date, slot: S.slot, doctor: doc, idToken: S.idToken, accessToken: S.accessToken, hp: $('hp').value }, function(d) {
+      if (d.error) return showErr('s-err', d.error);
+      $('d-title').textContent = '✅ 改約成功';
+      $('d-kv').innerHTML = '<span>預約編號</span><b>' + d.id + '</b><span>院區</span><b>' + d.clinicName + '院區</b><span>原時段</span><b>' + d.from.replace(/-/g, '/') + '</b><span>新日期</span><b>' + d.date.replace(/-/g, '/') + '</b><span>新時段</span><b>' + d.label + '</b><span>醫師</span><b>' + d.doctor + '</b><span>姓名</span><b>' + esc(d.name) + '</b>';
+      $('d-line').innerHTML = (d.pushed ? '✓ 改約確認已傳送到您的 LINE。' : '') + '線上改約限一次，之後如需再更改請電洽院區。';
+      telLink($('d-tel'), d.phone); S.qList = null; go('done');
+    }, $('s-btn'), '改約中…');
+  }
   var rv = S.mode === 'rv'; var f = rv ? rvData() : formData(); f.action = rv ? 'pubBook2' : 'pubBook'; f.date = S.date; f.slot = S.slot; f.doctor = $('s-doctor').value; if (rv) f.name = (S.rv && S.rv.name) || '';
   if (!f.date || !f.slot || !f.doctor) return showErr('s-err', '請選擇日期、時段與醫師');
   api(f, function(d) {
