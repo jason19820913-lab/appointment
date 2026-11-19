@@ -174,6 +174,8 @@ table.lt tr.swrow td{background:#FFF4EF}table.lt tr.swrow td.time b{color:#C0392
 .ltb select,.ltb .search{height:54px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:17px}
 .ltb .search{margin-left:auto;width:340px}
 .ltb .btn.sec{height:54px;border-radius:12px;font-size:16px}
+/* 2026-11-19：工具列維持一列（寬螢幕不換行）；搜尋框吃剩餘寬度 */
+@media(min-width:1000px){.ltb{flex-wrap:nowrap;gap:10px}.ltb>*{flex-shrink:0}.ltb .search{flex:1 1 200px;width:auto;min-width:150px;margin-left:0}.ltb #li-doctor{max-width:170px}.ltb .btn.sec{padding:0 14px;white-space:nowrap}.ltb .datepill{padding:0 14px;gap:8px}.ltb .ibtn{width:46px}}
 .lk{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:18px}
 .lk .k{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(27,43,38,.04),0 6px 18px rgba(27,43,38,.05)}
 .lk .k small{display:block;color:var(--mut);font-size:15px}.lk .k b{display:block;font-size:40px;font-weight:700;margin-top:6px;line-height:1.1}
@@ -362,9 +364,9 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <select id="li-clinic" onchange="loadList();listSearch()"></select>
       <select id="li-doctor" onchange="renderList()"><option value="">全部醫師</option></select>
       <select id="li-period" onchange="renderList()"><option value="">全日</option><option value="am">上午診</option><option value="pm">下午診</option><option value="ev">晚間診</option></select>
-      <input id="li-q" class="search" placeholder="搜尋姓名 / 身分證 / 電話（不分日期）" oninput="renderList();listSearch()">
-      <button class="btn sec" onclick="window.print()">🖨 列印名單</button>
-      <button class="btn sec" id="li-remind" onclick="sendRemindersNow()" title="立即補發明天所有已綁定且尚未提醒的預約">📨 發送明日提醒</button>
+      <input id="li-q" class="search" placeholder="🔍 姓名／身分證／電話（全部日期）" title="不分日期搜尋所有預約" oninput="renderList();listSearch()">
+      <button class="btn sec" onclick="window.print()" title="列印名單">🖨 列印</button>
+      <button class="btn sec" id="li-remind" onclick="sendRemindersNow()" title="發送明日提醒：立即補發明天所有已綁定且尚未提醒的預約">📨 明日提醒</button>
     </div>
     <div class="xs hidden" id="li-xs"></div>
     <div class="swarn hidden" id="li-swarn"></div>
