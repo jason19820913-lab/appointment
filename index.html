@@ -140,6 +140,13 @@ main{max-width:1880px;margin:0 auto;padding:28px 28px 40px}
 .perf{font-size:11px;color:rgba(255,255,255,.55);margin-left:10px;cursor:pointer;white-space:nowrap;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.18)}.perf:hover{color:#fff}.perf.slow{color:#ffd27a;border-color:#ffd27a}.perf.bad{color:#ff9c9c;border-color:#ff9c9c}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--tx);white-space:nowrap}
 .ntag{display:inline-block;margin-top:3px;color:var(--mut);font-size:11px}.ntag.todo{color:var(--red);font-weight:700}.ntag.ok{color:#1E7F5C;font-weight:700}
+.xs{background:#fff;border:1px solid #CFE3DA;border-radius:14px;margin-bottom:14px;overflow:hidden}
+.xs .xh{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#EEF7F2;color:#1F4A3E;font-size:14px}.xs .xh b{font-size:15px}.xs .xh .btn{margin-left:auto}
+.xs .xb{max-height:300px;overflow:auto}.xs table{width:100%;border-collapse:collapse;font-size:14px}
+.xs td{padding:8px 12px;border-top:1px solid #EEF2F0;white-space:nowrap}.xs tr.x{cursor:pointer}.xs tr.x:hover td{background:#F5FAF7}
+.xs tr.cur td{background:#FFF8E1}.xs .past td{color:#7d8a85}.xs .st{font-size:12.5px;border-radius:6px;padding:2px 8px;background:#EEF2F0}
+.xs .st.ok{background:#E3F4EA;color:#1E7F5C}.xs .st.cx{background:#FDECEA;color:#B03A2E}.xs .st.wt{background:#FFF4DB;color:#9A6B00}
+.xs .xm{padding:14px 16px;color:var(--mut);font-size:14px}
 .swarn{display:flex;align-items:center;gap:12px;background:#FFF1EC;border:1px solid #F3B9A6;color:#9C3B1F;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.5}.swarn b{font-size:15px}.swarn .btn{margin-left:auto}
 table.lt tr.swrow td{background:#FFF4EF}table.lt tr.swrow td.time b{color:#C0392B}.pill.swp{background:#FDE2D8;color:#9C3B1F;white-space:normal;line-height:1.4;display:inline-block;max-width:260px;text-align:left}
 .slot .who .w{color:var(--red);font-weight:700}
@@ -352,13 +359,14 @@ tr.done td{background:#F6FAF8;color:var(--mut)}tr.noshow td{background:var(--amb
       <div class="datepill" id="li-pill" title="點一下開啟行事曆選日期" onclick="toggleListCal(event)"><span class="ic">📅</span><input type="hidden" id="li-date"><b id="li-datetxt"></b><span class="today-badge hidden" id="li-today">今天</span><span class="ic" style="font-size:12px;color:var(--mut)">▼</span>
           <div class="lcal hidden" id="li-cal" onclick="event.stopPropagation()"><div class="cal-h"><button type="button" onclick="listCalMove(-1)">‹</button><b id="li-cal-title"></b><button type="button" onclick="listCalMove(1)">›</button></div><div class="cal" id="li-cal-grid"></div><div class="lcal-f"><button type="button" class="btn sm sec" onclick="listCalPick(S.today)">今天</button><button type="button" class="btn sm sec" onclick="closeListCal()">關閉</button></div></div></div>
       <button class="ibtn" onclick="shiftDate(1)">›</button>
-      <select id="li-clinic" onchange="loadList()"></select>
+      <select id="li-clinic" onchange="loadList();listSearch()"></select>
       <select id="li-doctor" onchange="renderList()"><option value="">全部醫師</option></select>
       <select id="li-period" onchange="renderList()"><option value="">全日</option><option value="am">上午診</option><option value="pm">下午診</option><option value="ev">晚間診</option></select>
-      <input id="li-q" class="search" placeholder="搜尋姓名 / 身分證 / 電話" oninput="renderList()">
+      <input id="li-q" class="search" placeholder="搜尋姓名 / 身分證 / 電話（不分日期）" oninput="renderList();listSearch()">
       <button class="btn sec" onclick="window.print()">🖨 列印名單</button>
       <button class="btn sec" id="li-remind" onclick="sendRemindersNow()" title="立即補發明天所有已綁定且尚未提醒的預約">📨 發送明日提醒</button>
     </div>
+    <div class="xs hidden" id="li-xs"></div>
     <div class="swarn hidden" id="li-swarn"></div>
     <div class="swarn webchg hidden" id="li-webchg"></div>
     <div class="lk" id="li-kpi"></div>
@@ -1160,6 +1168,41 @@ function lateMinutes(b) { // 今日(或過去)且待報到、時段結束已過 
   if (date > S.today) return 0;
   var endMin = slotMin(b.slot) + 60; return nowMin > endMin ? nowMin - endMin : 0;
 }
+// ---- 每日名單搜尋：不分日期（2026-11-19）----
+// 打字 0.4 秒後向後台查全部日期（依右側院區篩選），結果列在名單上方；點一列就跳到那天的名單（搜尋字保留，名單只顯示這個人）
+var _xsT = null, _xsSeq = 0; S.xsOpen = true;
+function listSearch(force) {
+  clearTimeout(_xsT); var q = document.getElementById('li-q').value.trim(), box = document.getElementById('li-xs');
+  if (!q) { box.classList.add('hidden'); box.innerHTML = ''; S.xs = null; return; }
+  if (!force && S.xs && S.xs.q === q && S.xs.clinic === document.getElementById('li-clinic').value) { renderXs(); return; }
+  _xsT = setTimeout(function(){
+    var seq = ++_xsSeq, clinic = document.getElementById('li-clinic').value;
+    box.classList.remove('hidden'); box.innerHTML = '<div class="xh">🔍 搜尋所有日期「' + esc(q) + '」中…</div>';
+    get({ action:'searchBookings', q:q, clinicCode:clinic }, function(d) {
+      if (seq !== _xsSeq || q !== document.getElementById('li-q').value.trim()) return;
+      if (d.error) { box.innerHTML = '<div class="xh">🔍 ' + esc(d.error) + '</div>'; return; }
+      S.xs = { q: q, clinic: clinic, list: d.list || [], total: d.total || 0, tooShort: d.tooShort }; S.xsOpen = true; renderXs();
+    }, null, { silent: true });
+  }, 400);
+}
+function renderXs() {
+  var box = document.getElementById('li-xs'), x = S.xs; if (!x) return;
+  var cur = document.getElementById('li-date').value || S.today, multi = !document.getElementById('li-clinic').value;
+  var future = x.list.filter(function(b){ return b.date >= S.today; }).length;
+  var head = '<div class="xh">🔍 <span>不分日期搜尋「<b>' + esc(x.q) + '</b>」：' + (x.tooShort ? '電話／病歷號請至少輸入 3 碼' : '共 <b>' + x.total + '</b> 筆' + (x.total ? '（今天以後 ' + future + ' 筆）' : '') + (x.total > x.list.length ? '，只列最近 ' + x.list.length + ' 筆，請輸入更完整' : '')) + '</span>' +
+    (x.list.length ? '<button class="btn sm sec" onclick="S.xsOpen=!S.xsOpen;renderXs()">' + (S.xsOpen ? '收起' : '展開') + '</button>' : '') +
+    '<button class="btn sm sec" style="' + (x.list.length ? 'margin-left:0' : '') + '" onclick="document.getElementById(\'li-q\').value=\'\';renderList();listSearch()">清除搜尋</button></div>';
+  if (!x.list.length || !S.xsOpen) { box.innerHTML = head + (x.list.length || x.tooShort ? '' : '<div class="xm">所有日期都找不到符合的預約（已封存的舊紀錄不在搜尋範圍）</div>'); box.classList.remove('hidden'); return; }
+  box.innerHTML = head + '<div class="xb"><table>' + x.list.map(function(b){
+    var st = b.status, sc = st === '已報到' ? 'ok' : /取消/.test(st) ? 'cx' : st === '待報到' ? 'wt' : '';
+    return '<tr class="x' + (b.date === cur ? ' cur' : '') + (b.date < S.today ? ' past' : '') + '" onclick="xsGo(\'' + b.date + '\')" title="跳到 ' + dateTxt(b.date) + ' 的名單">' +
+      '<td><b>' + dateTxt(b.date) + '</b>' + (b.date === S.today ? ' <span class="today-badge">今天</span>' : '') + '</td><td>' + esc(String(b.slot).slice(0, 5)) + '</td>' + (multi ? '<td>' + esc(b.clinicName) + '</td>' : '') +
+      '<td><b>' + esc(b.name) + '</b></td><td>' + esc(b.pidMasked) + '</td><td>' + esc(b.phone || '') + '</td><td>' + esc(b.doctor) + '</td><td>' + esc(b.type) + '</td><td><span class="st ' + sc + '">' + esc(st) + '</span></td><td style="color:var(--teal)">看這天 ›</td></tr>';
+  }).join('') + '</table></div>';
+  box.classList.remove('hidden');
+}
+function xsGo(date) { document.getElementById('li-date').value = date; loadList(); renderXs(); window.scrollTo({ top: document.getElementById('li-swarn').offsetTop - 80, behavior: 'smooth' }); }
+
 function renderList() {
   var doc = document.getElementById('li-doctor').value, per = document.getElementById('li-period').value, q = document.getElementById('li-q').value.trim().toUpperCase();
   var rows = S.list.filter(function(b) {
@@ -1180,6 +1223,8 @@ function renderList() {
     '<div class="k"><small>尚未報到</small><b>' + k.pend + '</b></div>' +
     '<div class="k r"><small>已取消（LINE / 電話）</small><b>' + k.cancel + '</b></div>' +
     '<div class="k a"><small>逾時未到</small><b>' + k.late + '</b></div>';
+  if (S.xs) renderXs();
+  document.getElementById('li-empty').textContent = S.list.length && q ? '此日沒有符合「' + document.getElementById('li-q').value.trim() + '」的預約，可看上方不分日期的搜尋結果' : '此日無預約';
   document.getElementById('li-empty').classList.toggle('hidden', rows.length > 0);
   document.getElementById('li-count').textContent = '顯示 ' + rows.length + ' / 共 ' + S.list.length + ' 筆 · 依時段、序號排序';
   // 班表異動橫幅：本日待報到中，預約醫師在官網班表該時段沒有看診者
