@@ -60,7 +60,7 @@ h2{font-size:18px;margin:0 0 14px}
       <div class="fld"><label>身分證字號 <b>*</b></label><input id="b-pid" name="pid" autocomplete="off" placeholder="A123456789" maxlength="10" autocapitalize="characters" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');pidHint(this)"><div class="hint" id="b-pid-hint"></div></div>
       <div class="row2">
         <div class="fld"><label>出生年月日（民國）<b>*</b></label><input id="b-birth" name="bday" autocomplete="bday" inputmode="numeric" placeholder="0680913" maxlength="10" oninput="this.value=this.value.replace(/[^0-9\/]/g,'')" onblur="birthTidy()"><div class="hint">例：68年9月13日 → 0680913</div></div>
-        <div class="fld"><label>手機號碼 <b>*</b></label><input id="b-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="numeric" placeholder="0912345678" maxlength="13" oninput="phoneTidy(this)" onblur="phoneTidy(this)"></div>
+        <div class="fld"><label>聯絡電話 <b>*</b></label><input id="b-phone" name="tel" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="0912345678 或 03-4567890" maxlength="20" oninput="phoneTidy(this)" onblur="phoneTidy(this,true)"><div class="hint" id="b-phone-hint">手機或市話皆可；市話請加區碼，有分機可打 #123</div></div>
       </div>
       <div class="fld"><label>通訊地址 <b>*</b></label><input id="b-address" name="address" autocomplete="street-address" placeholder="例：新北市鶯歌區國慶街167號" maxlength="100"></div>
       <label class="ck" id="b-consent-row" style="display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.6;margin:4px 0 8px"><input type="checkbox" id="b-consent" style="margin-top:5px"><span>我同意金鶯診所將我的 LINE 帳號與病歷資料連結，用於預約提醒、候診叫號、衛教與滿意度調查等通知（個人資料僅供本診所醫療服務使用）。</span></label>
@@ -102,7 +102,23 @@ function pidValid(pid) {
   return sum % 10 === 0;
 }
 function pidHint(el){ var h = $('b-pid-hint'); if (!h) return; var v = el.value; if (v.length < 10) { h.textContent = ''; el.style.borderColor = ''; return; } var ok = pidValid(v); h.textContent = ok ? '✓ 格式正確' : '✕ 檢查碼不正確，請再確認'; h.style.color = ok ? '#1E7F5C' : '#C0392B'; el.style.borderColor = ok ? '' : '#C0392B'; }
-function phoneTidy(el){ var v = String(el.value || '').replace(/^\+?886/, '0').replace(/[^0-9]/g, ''); if (v.length > 10) v = v.slice(0, 10); if (el.value !== v) el.value = v; }
+// 聯絡電話：手機 09xxxxxxxx 或市話（區碼＋號碼，可加 #分機）；離開欄位時整理成 0912345678／03-4567890／02-12345678#123
+function telParse(v) {
+  var raw = String(v || '').trim().replace(/^\+?886-?/, '0').replace(/^\(0?(\d{1,3})\)/, '0$1'); if (!raw) return null;
+  var ext = '', m = raw.match(/(?:#|轉|分機|ext\.?|x)\s*(\d{1,6})\s*$/i); if (m) { ext = m[1]; raw = raw.slice(0, m.index); }
+  var d = raw.replace(/\D/g, ''); if (d && d[0] !== '0') d = '0' + d;
+  if (/^09\d{8}$/.test(d)) return ext ? null : { fmt: d, mobile: true };
+  if (!/^0[2-8]\d{7,8}$/.test(d)) return null;
+  var ac = /^0(836|826)/.test(d) ? 4 : /^0(37|49|82|89)/.test(d) ? 3 : 2;
+  if (ac === 2 && d.length === 10 && !/^0[24]/.test(d)) return null;
+  return { fmt: d.slice(0, ac) + '-' + d.slice(ac) + (ext ? '#' + ext : ''), mobile: false };
+}
+function phoneTidy(el, done) {
+  var v = String(el.value || '').replace(/[^0-9+()#\-\s轉分機extEXT.]/g, ''); if (el.value !== v) el.value = v;
+  if (!done) return; var t = telParse(v), h = $('b-phone-hint'); if (!v) return;
+  if (t) { el.value = t.fmt; if (h) { h.textContent = t.mobile ? '✓ 手機' : '✓ 市話'; h.style.color = '#1E7F5C'; } }
+  else if (h) { h.textContent = '✕ 格式不正確：手機 09 開頭 10 碼；市話請含區碼，例 03-4567890'; h.style.color = '#C0392B'; }
+}
 function birthTidy(){ var el = $('b-birth'), m = el.value.match(/^(\d{4})[\/\-.]?(\d{2})[\/\-.]?(\d{2})$/); if (m && +m[1] > 1911) { el.value = String(+m[1] - 1911).padStart(3, '0') + '/' + m[2] + '/' + m[3]; return; } var v = el.value.replace(/\D/g, ''); if (v.length === 7) el.value = v.slice(0,3) + '/' + v.slice(3,5) + '/' + v.slice(5); else if (v.length === 6) el.value = '0' + v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4); }
 function telLink(a, phone){ if (phone) { a.href = 'tel:' + phone.replace(/[^\d+]/g, ''); a.textContent = '📞 撥打院區電話 ' + phone; a.classList.remove('hidden'); } else a.classList.add('hidden'); }
 function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
@@ -164,7 +180,7 @@ function submitFirstForm() {
   if (!f.name) return showErr('b-err', '請輸入姓名');
   if (!/^[A-Z][A-D0-9]\d{8}$/.test(f.pid)) return showErr('b-err', '身分證字號格式不正確'); if (!pidValid(f.pid)) return showErr('b-err', '身分證字號檢查碼不正確，請再確認一次');
   if (!/^\d{3}\/\d{2}\/\d{2}$/.test(f.birth)) return showErr('b-err', '出生年月日請以民國年輸入 7 碼數字，例：0680913');
-  if (!/^09\d{8}$/.test(f.phone)) return showErr('b-err', '請輸入 10 碼手機號碼');
+  if (!telParse(f.phone)) return showErr('b-err', '聯絡電話格式不正確：手機請輸入 09 開頭 10 碼；市話請含區碼，例 03-4567890');
   if (!f.address) return showErr('b-err', '請輸入通訊地址');
   if (S.idToken && !$('b-consent').checked) return showErr('b-err', '請勾選同意將 LINE 帳號與病歷連結，才能為您綁定並發送提醒');
   f.action = 'pubFirstForm'; f.consent = $('b-consent').checked ? '1' : '';
